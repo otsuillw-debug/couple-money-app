@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ふたりの家計">
+<title>ふたりの家計</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#F0F2F7;--surface:#FFFFFF;--primary:#0D0F14;--secondary:#6B7080;
+  --accent:#4361EE;--accent-light:#EEF1FD;--green:#10B981;--green-light:#ECFDF5;
+  --red:#EF4444;--red-light:#FEF2F2;--border:rgba(13,15,20,0.08);
+  --font:'Noto Sans JP',sans-serif;--mono:'Noto Sans Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);font-family:var(--font);overflow:hidden}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;max-width:430px;margin:0 auto;background:var(--bg)}
+.status-bar{height:env(safe-area-inset-top,0px);background:var(--bg);flex-shrink:0}
+#room-gate{position:fixed;inset:0;background:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;z-index:100;max-width:430px;margin:0 auto}
+#room-gate.hide{display:none}
+.gate-emoji{font-size:52px;margin-bottom:16px}
+.gate-title{font-size:26px;font-weight:700;color:#fff;margin-bottom:8px;text-align:center}
+.gate-sub{font-size:14px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.6;margin-bottom:36px}
+.gate-card{background:#fff;border-radius:20px;padding:24px;width:100%;margin-bottom:16px}
+.gate-card-title{font-size:12px;font-weight:700;color:var(--secondary);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.gate-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:16px;color:var(--primary);outline:none;transition:border-color .15s;letter-spacing:.08em;text-transform:uppercase;font-family:var(--mono)}
+.gate-input:focus{border-color:var(--accent)}
+.gate-btn{width:100%;padding:14px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .15s;margin-top:10px}
+.gate-btn:hover{opacity:.88}
+.gate-btn-primary{background:var(--accent);color:#fff}
+.gate-btn-secondary{background:rgba(255,255,255,0.2);color:#fff;border:1.5px solid rgba(255,255,255,0.5)}
+.gate-divider{color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0}
+.screen{flex:1;overflow-y:auto;display:none;flex-direction:column}
+.screen.active{display:flex}
+.screen::-webkit-scrollbar{display:none}
+.tab-bar{height:calc(64px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:0.5px solid var(--border);display:flex;flex-shrink:0;padding:6px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));gap:4px}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;border-radius:12px;transition:background .15s;padding:6px;font-family:var(--font)}
+.tab-btn:hover{background:var(--bg)}
+.tab-icon{font-size:18px;line-height:1}
+.tab-label{font-size:10px;font-weight:500;color:var(--secondary)}
+.tab-btn.active .tab-label{color:var(--accent);font-weight:700}
+.page-head{padding:18px 20px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-size:20px;font-weight:700;color:var(--primary)}
+.sec-header{display:flex;justify-content:space-between;align-items:center;padding:0 20px;margin-bottom:8px}
+.sec-title{font-size:13px;font-weight:700;color:var(--primary)}
+.sec-link{font-size:12px;color:var(--accent);cursor:pointer;background:none;border:none;font-family:var(--font);font-weight:500}
+.month-switcher{display:flex;align-items:center;padding:0 20px;margin-bottom:12px}
+.month-arrow{width:32px;height:32px;border-radius:8px;border:none;background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--secondary);flex-shrink:0}
+.month-tabs{flex:1;display:flex;gap:4px;padding:0 6px}
+.month-tab{flex:1;padding:6px 4px;border-radius:8px;border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--secondary);background:transparent;text-align:center}
+.month-tab.active{background:var(--accent);color:#fff}
+.bal-card{margin:0 20px 12px;background:var(--accent);border-radius:20px;padding:20px 20px 16px;color:#fff;position:relative;overflow:hidden}
+.bal-card::before{content:'';position:absolute;top:-50px;right:-30px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.07)}
+.bal-card::after{content:'';position:absolute;bottom:-60px;left:-20px;width:160px;height:160px;border-radius:50%;background:rgba(0,0,0,0.06)}
+.bal-label{font-size:11px;opacity:.7;margin-bottom:4px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.bal-amount{font-family:var(--mono);font-size:36px;font-weight:600;letter-spacing:-1px;margin-bottom:14px;line-height:1}
+.bal-row{display:flex;gap:10px;position:relative;z-index:1}
+.bal-person{flex:1;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px}
+.bal-person-name{font-size:10px;opacity:.65;margin-bottom:3px;font-weight:500}
+.bal-person-amt{font-family:var(--mono);font-size:15px;font-weight:600}
+.settle-btn{margin:0 20px 14px;background:var(--green-light);border:0.5px solid rgba(16,185,129,0.25);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;width:calc(100% - 40px);transition:opacity .2s;font-family:var(--font)}
+.settle-btn:hover{opacity:.8}
+.settle-icon{width:34px;height:34px;background:var(--green);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;color:#fff;font-weight:700}
+.settle-title{font-size:12px;font-weight:700;color:var(--green);text-align:left}
+.settle-sub{font-size:11px;color:var(--secondary);text-align:left;margin-top:1px}
+.exp-list{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.exp-item{background:var(--surface);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:opacity .15s}
+.exp-item:hover{opacity:.88}
+.exp-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.exp-body{flex:1;min-width:0}
+.exp-name{font-size:13px;font-weight:500;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exp-meta{font-size:11px;color:var(--secondary);margin-top:2px}
+.exp-right{text-align:right;flex-shrink:0}
+.exp-amt{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--primary)}
+.exp-payer{font-size:11px;color:var(--secondary);margin-top:2px}
+.ic-food{background:#FFF3CD}.ic-rent{background:#DBEAFE}.ic-util{background:#D1FAE5}.ic-fun{background:#FAE8FF}.ic-other{background:#F1F5F9}
+.recurring-badge{display:inline-block;background:var(--accent-light);color:var(--accent);font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.add-form{padding:0 20px;display:flex;flex-direction:column;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.flabel{font-size:11px;font-weight:700;color:var(--secondary);letter-spacing:.07em;text-transform:uppercase}
+.finput{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:14px;color:var(--primary);font-family:var(--font);outline:none;transition:border-color .15s}
+.finput:focus{border-color:var(--accent)}
+.amt-row{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:10px;border:0.5px solid var(--border);padding:8px 13px;transition:border-color .15s}
+.amt-row:focus-within{border-color:var(--accent)}
+.amt-prefix{font-family:var(--mono);font-size:22px;color:var(--secondary)}
+.amt-input{border:none;outline:none;font-family:var(--mono);font-size:24px;font-weight:600;color:var(--primary);background:transparent;flex:1;width:0}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.cat-opt{background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:9px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:all .15s}
+.cat-opt.sel{border-color:var(--accent);background:var(--accent-light)}
+.cat-opt-ic{font-size:20px;line-height:1}
+.cat-opt-lb{font-size:10px;font-weight:500;color:var(--secondary)}
+.cat-opt.sel .cat-opt-lb{color:var(--accent);font-weight:700}
+.payer-row{display:flex;gap:8px}
+.payer-btn{flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:12px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--font)}
+.payer-btn.sel{border-color:var(--accent);background:var(--accent-light)}
+.payer-name{font-size:13px;font-weight:700;color:var(--primary)}
+.payer-btn.sel .payer-name{color:var(--accent)}
+.sub-btn{background:var(--accent);color:#fff;border:none;border-radius:13px;padding:15px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .15s;margin-top:2px}
+.sub-btn:hover{opacity:.9}
+.sub-btn:active{opacity:.8;transform:scale(.99)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:10px;padding:12px 14px;border:0.5px solid var(--border)}
+.toggle-label{font-size:13px;font-weight:500;color:var(--primary)}
+.toggle-sub{font-size:11px;color:var(--secondary);margin-top:2px}
+.toggle{width:44px;height:26px;border-radius:99px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.toggle.on::after{transform:translateX(18px)}
+.hist-filter{display:flex;gap:6px;padding:0 20px 10px;overflow-x:auto}
+.hist-filter::-webkit-scrollbar{display:none}
+.fchip{background:var(--surface);border:0.5px solid var(--border);border-radius:99px;padding:6px 13px;font-size:11px;font-weight:700;color:var(--secondary);white-space:nowrap;cursor:pointer;transition:all .15s;font-family:var(--font)}
+.fchip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.hist-month{padding:0 20px 6px;font-size:10px;font-weight:700;color:var(--secondary);letter-spacing:.08em;text-transform:uppercase}
+.hist-list{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.view-toggle{display:flex;gap:4px;background:var(--surface);border-radius:10px;padding:3px;margin:0 20px 10px}
+.view-btn{flex:1;padding:7px;border-radius:8px;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--secondary);background:transparent}
+.view-btn.active{background:var(--accent);color:#fff}
+.graph-wrap{padding:0 20px;display:flex;flex-direction:column;gap:10px}
+.graph-bar-row{display:flex;align-items:center;gap:8px}
+.graph-bar-label{font-size:11px;color:var(--secondary);width:56px;text-align:right;flex-shrink:0}
+.graph-bar-track{flex:1;background:var(--bg);border-radius:99px;height:20px;overflow:hidden}
+.graph-bar-fill{height:100%;border-radius:99px}
+.graph-bar-val{font-family:var(--mono);font-size:11px;color:var(--primary);font-weight:600;width:60px;text-align:right;flex-shrink:0}
+.graph-total{background:var(--surface);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin:10px 20px 0}
+.sum-box{background:var(--surface);border-radius:14px;padding:14px;margin:0 20px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sum-item{text-align:center;padding:10px;background:var(--bg);border-radius:10px}
+.sum-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--primary)}
+.sum-lbl{font-size:10px;color:var(--secondary);margin-top:3px;font-weight:500}
+.set-sec{padding:0 20px;margin-bottom:16px}
+.set-sec-title{font-size:10px;font-weight:700;color:var(--secondary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px}
+.set-card{background:var(--surface);border-radius:14px;overflow:hidden}
+.set-row{padding:13px 15px;display:flex;align-items:center;gap:11px;border-bottom:0.5px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-row-v{padding:13px 15px;display:flex;flex-direction:column;gap:8px;border-bottom:0.5px solid var(--border)}
+.set-row-v:last-child{border-bottom:none}
+.set-row-head{display:flex;align-items:center;gap:8px}
+.set-row-icon{font-size:16px;width:28px;text-align:center}
+.set-row-body{flex:1}
+.set-row-label{font-size:13px;color:var(--primary);font-weight:500}
+.set-row-sub{font-size:11px;color:var(--secondary);margin-top:1px}
+.set-inp-full{width:100%;border:0.5px solid var(--border);border-radius:9px;padding:10px 12px;font-size:14px;font-family:var(--font);color:var(--primary);outline:none;background:var(--bg);transition:border-color .15s}
+.set-inp-full:focus{border-color:var(--accent);background:var(--accent-light)}
+.room-code-display{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);letter-spacing:.15em;background:var(--accent-light);border-radius:8px;padding:6px 12px;cursor:pointer;user-select:all}
+.rec-item{background:var(--surface);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.rec-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.rec-body{flex:1}
+.rec-name{font-size:13px;font-weight:500;color:var(--primary)}
+.rec-meta{font-size:11px;color:var(--secondary);margin-top:2px}
+.rec-amt{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--primary)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:flex-end;max-width:430px;margin:0 auto}
+.modal-backdrop.show{display:flex}
+.modal{background:var(--surface);border-radius:24px 24px 0 0;padding:20px;width:100%;max-height:88%;overflow-y:auto;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 16px}
+.modal-title{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:16px;text-align:center}
+.modal-form{display:flex;flex-direction:column;gap:12px}
+.modal-actions{display:flex;gap:8px;margin-top:4px}
+.modal-btn{flex:1;padding:13px;border-radius:12px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.modal-btn-save{background:var(--accent);color:#fff}
+.modal-btn-del{background:var(--red-light);color:var(--red)}
+.modal-btn-cancel{background:var(--bg);color:var(--secondary)}
+.toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(12px);background:var(--primary);color:#fff;padding:9px 18px;border-radius:99px;font-size:12px;font-weight:700;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap;font-family:var(--font)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;padding:40px 20px;color:var(--secondary);font-size:13px}
+.online-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+
+<div id="room-gate">
+  <div class="gate-emoji">💑</div>
+  <div class="gate-title">ふたりの家計</div>
+  <div class="gate-sub">パートナーとお金の管理を<br>シンプルに、リアルタイムで。</div>
+  <div class="gate-card">
+    <div class="gate-card-title">ルームコード</div>
+    <input class="gate-input" id="room-input" type="text" maxlength="6" placeholder="XXXXXX" oninput="this.value=this.value.toUpperCase()">
+    <button class="gate-btn gate-btn-primary" onclick="joinRoom()">参加する</button>
+  </div>
+  <div class="gate-divider">または</div>
+  <button class="gate-btn gate-btn-secondary" style="width:100%;margin-top:8px" onclick="createRoom()">新しいルームを作る</button>
+</div>
+
+<div id="app" style="display:none">
+  <div class="status-bar"></div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="page-head">
+      <div>
+        <div style="font-size:12px;color:var(--secondary);margin-bottom:2px"><span class="online-dot"></span><span id="online-label">同期中...</span></div>
+        <div class="page-title">共同支出</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--secondary);background:var(--surface);padding:4px 10px;border-radius:99px;letter-spacing:.1em" id="room-badge"></div>
+    </div>
+    <div class="month-switcher">
+      <button class="month-arrow" onclick="shiftMonth(-1)">‹</button>
+      <div class="month-tabs" id="home-month-tabs"></div>
+      <button class="month-arrow" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="bal-card">
+      <div class="bal-label">差額（現在）</div>
+      <div class="bal-amount" id="balance-display">¥0</div>
+      <div class="bal-row">
+        <div class="bal-person"><div class="bal-person-name" id="home-p1-label">ユーザーA</div><div class="bal-person-amt" id="p1-total">¥0</div></div>
+        <div class="bal-person"><div class="bal-person-name" id="home-p2-label">ユーザーB</div><div class="bal-person-amt" id="p2-total">¥0</div></div>
+      </div>
+    </div>
+    <div id="settle-area" style="display:none">
+      <button class="settle-btn" onclick="settle()">
+        <div class="settle-icon">✓</div>
+        <div><div class="settle-title" id="settle-title">精算する</div><div class="settle-sub">タップで今月の精算を完了</div></div>
+      </button>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">最近の支出</div>
+      <button class="sec-link" onclick="switchTab('history')">すべて →</button>
+    </div>
+    <div class="exp-list" id="recent-list"></div>
+    <div style="height:16px"></div>
+  </div>
+
+  <!-- ADD -->
+  <div class="screen" id="screen-add">
+    <div class="page-head"><div class="page-title">支出を追加</div></div>
+    <div class="add-form">
+      <div class="fg"><div class="flabel">金額</div><div class="amt-row"><span class="amt-prefix">¥</span><input class="amt-input" id="inp-amount" type="number" placeholder="0" inputmode="numeric"></div></div>
+      <div class="fg"><div class="flabel">メモ</div><input class="finput" id="inp-memo" type="text" placeholder="何に使いましたか？"></div>
+      <div class="fg"><div class="flabel">日付</div><input class="finput" id="inp-date" type="date"></div>
+      <div class="fg">
+        <div class="flabel">カテゴリ</div>
+        <div class="cat-grid">
+          <div class="cat-opt sel" data-cat="食費" onclick="selCat(this)"><span class="cat-opt-ic">🍜</span><span class="cat-opt-lb">食費</span></div>
+          <div class="cat-opt" data-cat="家賃" onclick="selCat(this)"><span class="cat-opt-ic">🏠</span><span class="cat-opt-lb">家賃</span></div>
+          <div class="cat-opt" data-cat="光熱費" onclick="selCat(this)"><span class="cat-opt-ic">💡</span><span class="cat-opt-lb">光熱費</span></div>
+          <div class="cat-opt" data-cat="娯楽" onclick="selCat(this)"><span class="cat-opt-ic">🎉</span><span class="cat-opt-lb">娯楽</span></div>
+          <div class="cat-opt" data-cat="日用品" onclick="selCat(this)"><span class="cat-opt-ic">🧴</span><span class="cat-opt-lb">日用品</span></div>
+          <div class="cat-opt" data-cat="交通" onclick="selCat(this)"><span class="cat-opt-ic">🚃</span><span class="cat-opt-lb">交通</span></div>
+          <div class="cat-opt" data-cat="医療" onclick="selCat(this)"><span class="cat-opt-ic">🏥</span><span class="cat-opt-lb">医療</span></div>
+          <div class="cat-opt" data-cat="その他" onclick="selCat(this)"><span class="cat-opt-ic">📦</span><span class="cat-opt-lb">その他</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="flabel">支払った人</div>
+        <div class="payer-row">
+          <button class="payer-btn sel" id="payer-1" onclick="selPayer(1)"><div class="payer-name" id="add-p1-name">ユーザーA</div></button>
+          <button class="payer-btn" id="payer-2" onclick="selPayer(2)"><div class="payer-name" id="add-p2-name">ユーザーB</div></button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">固定費として登録</div><div class="toggle-sub">毎月自動で追加されます</div></div>
+        <div class="toggle" id="recurring-toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <button class="sub-btn" onclick="addExpense()">追加する</button>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="screen" id="screen-history">
+    <div class="page-head"><div class="page-title">履歴</div></div>
+    <div class="month-switcher">
+      <button class="month-arrow" onclick="shiftMonth(-1)">‹</button>
+      <div class="month-tabs" id="hist-month-tabs"></div>
+      <button class="month-arrow" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="view-list-btn" onclick="setView('list')">📋 リスト</button>
+      <button class="view-btn" id="view-graph-btn" onclick="setView('graph')">📊 グラフ</button>
+    </div>
+    <div id="hist-list-view">
+      <div class="hist-month" id="hist-month-label"></div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+    <div id="hist-graph-view" style="display:none;padding:0 20px 0">
+      <canvas id="pie-chart" width="280" height="280" style="display:block;margin:12px auto 16px"></canvas>
+      <div id="pie-legend" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+      <div class="graph-total">
+        <div style="font-size:12px;color:var(--secondary);font-weight:500">合計</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--primary)" id="graph-total-val">¥0</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <div class="page-head"><div class="page-title">設定</div></div>
+    <div class="sum-box">
+      <div class="sum-item"><div class="sum-val" id="sum-total">¥0</div><div class="sum-lbl">今月の合計</div></div>
+      <div class="sum-item"><div class="sum-val" id="sum-count">0件</div><div class="sum-lbl">支出件数</div></div>
+      <div class="sum-item"><div class="sum-val" id="sum-p1">¥0</div><div class="sum-lbl" id="sum-p1-lbl">ユーザーAが支払</div></div>
+      <div class="sum-item"><div class="sum-val" id="sum-p2">¥0</div><div class="sum-lbl" id="sum-p2-lbl">ユーザーBが支払</div></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">ルーム情報</div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-row-icon">🔑</span>
+          <div class="set-row-body"><div class="set-row-label">ルームコード</div><div class="set-row-sub">タップでコピー → パートナーに共有</div></div>
+          <div class="room-code-display" id="room-code-display" onclick="copyRoomCode()"></div>
+        </div>
+        <div class="set-row">
+          <span class="set-row-icon">🟢</span>
+          <div class="set-row-body"><div class="set-row-label">接続状態</div></div>
+          <span style="font-size:12px;color:var(--green);font-weight:700">リアルタイム同期中</span>
+        </div>
+      </div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">プロフィール</div>
+      <div class="set-card">
+        <div class="set-row-v">
+          <div class="set-row-head"><span class="set-row-icon">👤</span><div class="set-row-label">ユーザーA の名前</div></div>
+          <input class="set-inp-full" id="name-p1" placeholder="名前を入力" oninput="updateNames()">
+        </div>
+        <div class="set-row-v">
+          <div class="set-row-head"><span class="set-row-icon">👤</span><div class="set-row-label">ユーザーB の名前</div></div>
+          <input class="set-inp-full" id="name-p2" placeholder="名前を入力" oninput="updateNames()">
+        </div>
+      </div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">固定費の管理</div>
+      <div id="recurring-list"></div>
+      <button style="width:100%;padding:12px;border-radius:11px;border:1.5px dashed var(--border);background:transparent;font-size:13px;font-weight:700;color:var(--secondary);cursor:pointer;font-family:var(--font)" onclick="showToast('追加画面で「固定費として登録」をONにして追加してください')">＋ 固定費を追加</button>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">割り勘設定</div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-row-icon">⚖️</span>
+          <div class="set-row-body"><div class="set-row-label">分担ルール</div><div class="set-row-sub">均等割り（50:50）</div></div>
+          <span style="color:var(--accent);font-weight:700;font-size:11px">固定</span>
+        </div>
+      </div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">データ</div>
+      <div class="set-card">
+        <div class="set-row" onclick="clearData()" style="cursor:pointer">
+          <span class="set-row-icon">🗑</span>
+          <div class="set-row-body"><div class="set-row-label" style="color:var(--red)">今月のデータをリセット</div></div>
+        </div>
+        <div class="set-row" onclick="leaveRoom()" style="cursor:pointer">
+          <span class="set-row-icon">🚪</span>
+          <div class="set-row-body"><div class="set-row-label" style="color:var(--secondary)">ルームから退出</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-home" onclick="switchTab('home')"><span class="tab-icon">🏠</span><span class="tab-label">ホーム</span></button>
+    <button class="tab-btn" id="tab-add" onclick="switchTab('add')"><span class="tab-icon">➕</span><span class="tab-label">追加</span></button>
+    <button class="tab-btn" id="tab-history" onclick="switchTab('history')"><span class="tab-icon">📋</span><span class="tab-label">履歴</span></button>
+    <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">設定</span></button>
+  </div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">支出を編集</div>
+    <div class="modal-form">
+      <div class="fg"><div class="flabel">金額</div><div class="amt-row"><span class="amt-prefix">¥</span><input class="amt-input" id="edit-amount" type="number" inputmode="numeric"></div></div>
+      <div class="fg"><div class="flabel">メモ</div><input class="finput" id="edit-memo" type="text"></div>
+      <div class="fg"><div class="flabel">日付</div><input class="finput" id="edit-date" type="date"></div>
+      <div class="fg">
+        <div class="flabel">カテゴリ</div>
+        <div class="cat-grid" id="edit-cat-grid">
+          <div class="cat-opt" data-cat="食費" onclick="selEditCat(this)"><span class="cat-opt-ic">🍜</span><span class="cat-opt-lb">食費</span></div>
+          <div class="cat-opt" data-cat="家賃" onclick="selEditCat(this)"><span class="cat-opt-ic">🏠</span><span class="cat-opt-lb">家賃</span></div>
+          <div class="cat-opt" data-cat="光熱費" onclick="selEditCat(this)"><span class="cat-opt-ic">💡</span><span class="cat-opt-lb">光熱費</span></div>
+          <div class="cat-opt" data-cat="娯楽" onclick="selEditCat(this)"><span class="cat-opt-ic">🎉</span><span class="cat-opt-lb">娯楽</span></div>
+          <div class="cat-opt" data-cat="日用品" onclick="selEditCat(this)"><span class="cat-opt-ic">🧴</span><span class="cat-opt-lb">日用品</span></div>
+          <div class="cat-opt" data-cat="交通" onclick="selEditCat(this)"><span class="cat-opt-ic">🚃</span><span class="cat-opt-lb">交通</span></div>
+          <div class="cat-opt" data-cat="医療" onclick="selEditCat(this)"><span class="cat-opt-ic">🏥</span><span class="cat-opt-lb">医療</span></div>
+          <div class="cat-opt" data-cat="その他" onclick="selEditCat(this)"><span class="cat-opt-ic">📦</span><span class="cat-opt-lb">その他</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="flabel">支払った人</div>
+        <div class="payer-row">
+          <button class="payer-btn sel" id="edit-payer-1" onclick="selEditPayer(1)"><div class="payer-name" id="edit-p1-name">ユーザーA</div></button>
+          <button class="payer-btn" id="edit-payer-2" onclick="selEditPayer(2)"><div class="payer-name" id="edit-p2-name">ユーザーB</div></button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-del" onclick="deleteExpense()">削除</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">キャンセル</button>
+        <button class="modal-btn modal-btn-save" onclick="saveExpense()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDDn-OhnVrotiiNA2BuLRFYuo1xxGGVHkU",
+  authDomain: "couple-money-app-7d192.firebaseapp.com",
+  databaseURL: "https://couple-money-app-7d192-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "couple-money-app-7d192",
+  storageBucket: "couple-money-app-7d192.firebasestorage.app",
+  messagingSenderId: "479141705393",
+  appId: "1:479141705393:web:91f602899a0f69e1d89490"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let roomId=null, roomRef=null;
+let allExpenses={};
+let members={p1:'',p2:''};
+let recurringList=[];
+let selCatVal='食費', selPayerVal=1, filterCatVal='全て';
+let editingKey=null, editingMonth=null;
+let selEditCatVal='食費', selEditPayerVal=1;
+let curMonthIdx=2;
+
+const CAT_META={
+  '食費':{icon:'🍜',cls:'ic-food',color:'#FDE68A'},
+  '家賃':{icon:'🏠',cls:'ic-rent',color:'#BFDBFE'},
+  '光熱費':{icon:'💡',cls:'ic-util',color:'#A7F3D0'},
+  '娯楽':{icon:'🎉',cls:'ic-fun',color:'#F5D0FE'},
+  '日用品':{icon:'🧴',cls:'ic-other',color:'#E5E7EB'},
+  '交通':{icon:'🚃',cls:'ic-other',color:'#E5E7EB'},
+  '医療':{icon:'🏥',cls:'ic-other',color:'#FEE2E2'},
+  'その他':{icon:'📦',cls:'ic-other',color:'#E5E7EB'},
+};
+const fmt=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+
+function getMonths(){
+  const now=new Date();
+  return [-2,-1,0].map(o=>{
+    const d=new Date(now.getFullYear(),now.getMonth()+o,1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  });
+}
+function monthLabel(key){const[,m]=key.split('-');return`${parseInt(m)}月`}
+function curMonthKey(){return getMonths()[curMonthIdx]}
+function curExpenses(){return allExpenses[curMonthKey()]||[]}
+
+function shiftMonth(dir){
+  const next=curMonthIdx+dir;
+  if(next<0||next>=3)return;
+  curMonthIdx=next;
+  renderMonthTabs();
+  renderHome();
+  renderHistory();
+}
+
+function renderMonthTabs(){
+  const months=getMonths();
+  ['home-month-tabs','hist-month-tabs'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.innerHTML=months.map((m,i)=>
+      `<button class="month-tab ${i===curMonthIdx?'active':''}" onclick="setMonthIdx(${i})">${monthLabel(m)}</button>`
+    ).join('');
+  });
+  const lbl=document.getElementById('hist-month-label');
+  if(lbl)lbl.textContent=monthLabel(curMonthKey());
+}
+
+function setMonthIdx(i){curMonthIdx=i;renderMonthTabs();renderHome();renderHistory()}
+
+function genRoomId(){return Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('')}
+function createRoom(){document.getElementById('room-input').value=genRoomId();joinRoom()}
+function joinRoom(){
+  const id=document.getElementById('room-input').value.trim().toUpperCase();
+  if(id.length<4){alert('ルームコードを入力してください');return}
+  roomId=id;localStorage.setItem('roomId',id);startApp();
+}
+function leaveRoom(){
+  if(!confirm('ルームから退出しますか？'))return;
+  if(roomRef)roomRef.off();
+  localStorage.removeItem('roomId');location.reload();
+}
+
+function startApp(){
+  document.getElementById('room-gate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('room-badge').textContent=roomId;
+  document.getElementById('room-code-display').textContent=roomId;
+  document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
+  roomRef=db.ref('rooms/'+roomId);
+  roomRef.child('members').on('value',snap=>{
+    const v=snap.val()||{};
+    members={p1:v.p1||'',p2:v.p2||''};
+    document.getElementById('name-p1').value=members.p1;
+    document.getElementById('name-p2').value=members.p2;
+    applyNamesToUI();
+  });
+  roomRef.child('expenses').on('value',snap=>{
+    allExpenses={};
+    const v=snap.val()||{};
+    Object.entries(v).forEach(([month,items])=>{
+      allExpenses[month]=Object.entries(items).map(([k,e])=>({...e,_key:k,_month:month}));
+      allExpenses[month].sort((a,b)=>(b.ts||0)-(a.ts||0));
+    });
+    renderMonthTabs();renderHome();renderHistory();renderSettings();
+    document.getElementById('online-label').textContent='同期中';
+  });
+  roomRef.child('recurring').on('value',snap=>{
+    const v=snap.val()||{};
+    recurringList=Object.entries(v).map(([k,r])=>({...r,_key:k}));
+    renderRecurringList();
+    applyRecurringToCurrentMonth();
+  });
+  renderMonthTabs();
+}
+
+function updateNames(){
+  const p1=document.getElementById('name-p1').value;
+  const p2=document.getElementById('name-p2').value;
+  members={p1,p2};
+  roomRef.child('members').set({p1,p2});
+  applyNamesToUI();
+}
+
+function applyNamesToUI(){
+  const p1=members.p1||'ユーザーA', p2=members.p2||'ユーザーB';
+  document.getElementById('home-p1-label').textContent=p1;
+  document.getElementById('home-p2-label').textContent=p2;
+  document.getElementById('add-p1-name').textContent=p1;
+  document.getElementById('add-p2-name').textContent=p2;
+  document.getElementById('edit-p1-name').textContent=p1;
+  document.getElementById('edit-p2-name').textContent=p2;
+  document.getElementById('sum-p1-lbl').textContent=p1+'が支払';
+  document.getElementById('sum-p2-lbl').textContent=p2+'が支払';
+  renderHome();renderHistory();renderSettings();renderRecurringList();
+}
+
+function payerName(payer){return payer===1?(members.p1||'ユーザーA'):(members.p2||'ユーザーB')}
+
+function calcBal(exps){
+  let p1=0,p2=0;
+  exps.forEach(e=>{if(e.payer===1)p1+=e.amount;else p2+=e.amount});
+  return{p1,p2,diff:p1-p2};
+}
+
+function renderHome(){
+  const exps=curExpenses();
+  const{p1,p2,diff}=calcBal(exps);
+  document.getElementById('p1-total').textContent=fmt(p1);
+  document.getElementById('p2-total').textContent=fmt(p2);
+  const abs=Math.abs(diff);
+  const sa=document.getElementById('settle-area');
+  if(abs>0){
+    document.getElementById('balance-display').textContent=fmt(abs);
+    const payer=diff>0?(members.p2||'ユーザーB'):(members.p1||'ユーザーA');
+    const payee=diff>0?(members.p1||'ユーザーA'):(members.p2||'ユーザーB');
+    document.getElementById('settle-title').textContent=`${payer} → ${payee} ${fmt(abs/2)}`;
+    sa.style.display='block';
+  }else{
+    document.getElementById('balance-display').textContent='差額なし';
+    sa.style.display='none';
+  }
+  const list=document.getElementById('recent-list');
+  const recent=exps.slice(0,4);
+  list.innerHTML=recent.length?recent.map(e=>expHTML(e)).join(''):'<div class="empty">まだ支出がありません</div>';
+}
+
+function expHTML(e){
+  const m=CAT_META[e.cat]||{icon:'📦',cls:'ic-other'};
+  const badge=e.recurring?'<span class="recurring-badge">固定費</span>':'';
+  return`<div class="exp-item" onclick="openEditModal('${e._key}','${e._month}')">
+    <div class="exp-icon ${m.cls}">${m.icon}</div>
+    <div class="exp-body"><div class="exp-name">${e.memo||e.cat}${badge}</div><div class="exp-meta">${e.cat} · ${e.date}</div></div>
+    <div class="exp-right"><div class="exp-amt">${fmt(e.amount)}</div><div class="exp-payer">${payerName(e.payer)}が支払</div></div>
+  </div>`;
+}
+
+function addExpense(){
+  const amt=parseFloat(document.getElementById('inp-amount').value);
+  const memo=document.getElementById('inp-memo').value.trim();
+  const date=document.getElementById('inp-date').value;
+  const isRecurring=document.getElementById('recurring-toggle').classList.contains('on');
+  if(!amt||amt<=0){showToast('金額を入力してください');return}
+  if(!date){showToast('日付を選択してください');return}
+  const month=date.substring(0,7);
+  const dateLabel=`${parseInt(date.substring(5,7))}/${parseInt(date.substring(8,10))}`;
+  const entry={memo:memo||selCatVal,cat:selCatVal,amount:amt,payer:selPayerVal,date:dateLabel,ts:Date.now(),recurring:isRecurring};
+  roomRef.child('expenses').child(month).push(entry).then(()=>{
+    if(isRecurring) roomRef.child('recurring').push({memo:memo||selCatVal,cat:selCatVal,amount:amt,payer:selPayerVal});
+    document.getElementById('inp-amount').value='';
+    document.getElementById('inp-memo').value='';
+    document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
+    document.getElementById('recurring-toggle').classList.remove('on');
+    showToast('追加しました ✓');
+    setTimeout(()=>switchTab('home'),500);
+  }).catch(()=>showToast('保存に失敗しました'));
+}
+
+function settle(){
+  const exps=curExpenses();const{diff}=calcBal(exps);const abs=Math.abs(diff);
+  if(abs===0)return;
+  if(!confirm('精算を完了しますか？今月の全支出が削除されます。'))return;
+  const payer=diff>0?(members.p2||'ユーザーB'):(members.p1||'ユーザーA');
+  const payee=diff>0?(members.p1||'ユーザーA'):(members.p2||'ユーザーB');
+  roomRef.child('expenses').child(curMonthKey()).remove()
+    .then(()=>showToast(`精算完了 ${payer}→${payee} ${fmt(abs/2)}`));
+}
+
+function renderHistory(){
+  const exps=curExpenses();
+  const filtered=filterCatVal==='全て'?exps:exps.filter(e=>e.cat===filterCatVal);
+  document.getElementById('hist-list').innerHTML=filtered.length?filtered.map(e=>expHTML(e)).join(''):'<div class="empty">支出がありません</div>';
+  renderGraph(exps);
+}
+
+function filterCat(el,cat){
+  document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');filterCatVal=cat;renderHistory();
+}
+
+function setView(v){
+  document.getElementById('hist-list-view').style.display=v==='list'?'block':'none';
+  document.getElementById('hist-graph-view').style.display=v==='graph'?'block':'none';
+  document.getElementById('view-list-btn').classList.toggle('active',v==='list');
+  document.getElementById('view-graph-btn').classList.toggle('active',v==='graph');
+}
+
+function renderGraph(exps){
+  const totals={};
+  exps.forEach(e=>{totals[e.cat]=(totals[e.cat]||0)+e.amount});
+  const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+  const total=exps.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('graph-total-val').textContent=fmt(total);
+
+  const canvas=document.getElementById('pie-chart');
+  const legend=document.getElementById('pie-legend');
+  if(!canvas||!sorted.length){if(legend)legend.innerHTML='<div class="empty">データがありません</div>';return}
+
+  const ctx=canvas.getContext('2d');
+  const W=280,H=280,cx=W/2,cy=H/2,R=110,R_inner=55;
+  ctx.clearRect(0,0,W,H);
+
+  const PIE_COLORS=['#BFDBFE','#FDE68A','#A7F3D0','#F5D0FE','#FCA5A5','#6EE7B7','#FCD34D','#C4B5FD'];
+  let startAngle=-Math.PI/2;
+  const slices=[];
+  sorted.forEach(([cat,amt],i)=>{
+    const angle=(amt/total)*2*Math.PI;
+    const color=PIE_COLORS[i%PIE_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,startAngle,startAngle+angle);
+    ctx.closePath();
+    ctx.fillStyle=color;
+    ctx.fill();
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2;
+    ctx.stroke();
+    slices.push({cat,amt,color,start:startAngle,end:startAngle+angle});
+    startAngle+=angle;
+  });
+  // 中央の穴（ドーナツ）
+  ctx.beginPath();
+  ctx.arc(cx,cy,R_inner,0,2*Math.PI);
+  ctx.fillStyle='#F0F2F7';
+  ctx.fill();
+  // 中央テキスト
+  ctx.fillStyle='#0D0F14';
+  ctx.font='bold 13px Noto Sans JP,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('合計',cx,cy-6);
+  ctx.font='bold 12px Noto Sans Mono,monospace';
+  ctx.fillText(fmt(total),cx,cy+12);
+
+  // 凡例（金額は省略なし）
+  legend.innerHTML=slices.map(s=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-radius:10px">
+      <div style="width:12px;height:12px;border-radius:3px;background:${s.color};flex-shrink:0"></div>
+      <span style="font-size:12px;color:var(--secondary);flex-shrink:0">${CAT_META[s.cat]?.icon||'📦'} ${s.cat}</span>
+      <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--primary);margin-left:auto">${fmt(s.amt)}</span>
+    </div>`).join('');
+}
+
+function renderSettings(){
+  const exps=curExpenses();const{p1,p2}=calcBal(exps);
+  document.getElementById('sum-total').textContent=fmt(p1+p2);
+  document.getElementById('sum-count').textContent=exps.length+'件';
+  document.getElementById('sum-p1').textContent=fmt(p1);
+  document.getElementById('sum-p2').textContent=fmt(p2);
+}
+
+function renderRecurringList(){
+  const list=document.getElementById('recurring-list');
+  if(!recurringList.length){list.innerHTML='';return}
+  list.innerHTML=recurringList.map(r=>{
+    const m=CAT_META[r.cat]||{icon:'📦',cls:'ic-other'};
+    return`<div class="rec-item">
+      <div class="rec-icon ${m.cls}">${m.icon}</div>
+      <div class="rec-body"><div class="rec-name">${r.memo}</div><div class="rec-meta">毎月 · ${payerName(r.payer)}</div></div>
+      <div class="rec-amt">${fmt(r.amount)}</div>
+    </div>`;
+  }).join('');
+}
+
+function applyRecurringToCurrentMonth(){
+  if(!recurringList.length||!roomRef)return;
+  const monthKey=getMonths()[2];
+  const today=new Date();
+  const dateLabel=`${today.getMonth()+1}/1`;
+  const exps=allExpenses[monthKey]||[];
+  recurringList.forEach(r=>{
+    const already=exps.some(e=>e.recurring&&e.memo===r.memo&&e.cat===r.cat);
+    if(!already) roomRef.child('expenses').child(monthKey).push({memo:r.memo,cat:r.cat,amount:r.amount,payer:r.payer,date:dateLabel,ts:Date.now(),recurring:true});
+  });
+}
+
+function copyRoomCode(){navigator.clipboard.writeText(roomId).then(()=>showToast('コピーしました！'))}
+function clearData(){
+  if(!confirm('今月の全支出を削除しますか？'))return;
+  roomRef.child('expenses').child(curMonthKey()).remove().then(()=>{showToast('リセットしました');renderSettings()});
+}
+
+function openEditModal(key,month){
+  const exps=allExpenses[month]||[];
+  const e=exps.find(x=>x._key===key);
+  if(!e)return;
+  editingKey=key;editingMonth=month;
+  document.getElementById('edit-amount').value=e.amount;
+  document.getElementById('edit-memo').value=e.memo||'';
+  const parts=(e.date||'').split('/');
+  const[y]=month.split('-');
+  if(parts.length===2) document.getElementById('edit-date').value=`${y}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+  document.querySelectorAll('#edit-cat-grid .cat-opt').forEach(o=>o.classList.toggle('sel',o.dataset.cat===e.cat));
+  selEditCatVal=e.cat;
+  selEditPayerVal=e.payer;
+  document.getElementById('edit-payer-1').classList.toggle('sel',e.payer===1);
+  document.getElementById('edit-payer-2').classList.toggle('sel',e.payer===2);
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function selEditCat(el){
+  document.querySelectorAll('#edit-cat-grid .cat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');selEditCatVal=el.dataset.cat;
+}
+function selEditPayer(n){
+  selEditPayerVal=n;
+  document.getElementById('edit-payer-1').classList.toggle('sel',n===1);
+  document.getElementById('edit-payer-2').classList.toggle('sel',n===2);
+}
+
+function saveExpense(){
+  const amt=parseFloat(document.getElementById('edit-amount').value);
+  const memo=document.getElementById('edit-memo').value.trim();
+  const date=document.getElementById('edit-date').value;
+  if(!amt||amt<=0){showToast('金額を入力してください');return}
+  const dateLabel=date?`${parseInt(date.substring(5,7))}/${parseInt(date.substring(8,10))}`:'';
+  roomRef.child('expenses').child(editingMonth).child(editingKey).update({
+    memo:memo||selEditCatVal,cat:selEditCatVal,amount:amt,payer:selEditPayerVal,date:dateLabel
+  }).then(()=>{closeModal();showToast('保存しました ✓')});
+}
+
+function deleteExpense(){
+  if(!confirm('この支出を削除しますか？'))return;
+  roomRef.child('expenses').child(editingMonth).child(editingKey).remove()
+    .then(()=>{closeModal();showToast('削除しました')});
+}
+
+function closeModal(){document.getElementById('edit-modal').classList.remove('show')}
+
+function switchTab(t){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='settings')renderSettings();
+}
+
+function selCat(el){
+  document.querySelectorAll('#screen-add .cat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');selCatVal=el.dataset.cat;
+}
+function selPayer(n){
+  selPayerVal=n;
+  document.getElementById('payer-1').classList.toggle('sel',n===1);
+  document.getElementById('payer-2').classList.toggle('sel',n===2);
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+document.getElementById('edit-modal').addEventListener('click',function(e){if(e.target===this)closeModal()});
+
+const savedRoom=localStorage.getItem('roomId');
+if(savedRoom){document.getElementById('room-input').value=savedRoom;joinRoom()}
+</script>
+</body>
+</html>
