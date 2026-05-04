@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ふたりの家計">
+<meta name="theme-color" content="#F25E08">
+<meta name="description" content="パートナーとお金を一緒に管理するアプリ">
+<link rel="apple-touch-icon" id="pwa-apple-icon">
+<link rel="manifest" id="pwa-manifest">
+<title>ふたりの家計</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#F6F2ED;--surface:#FDFAF6;--surface-2:#EFE9E0;
+  --primary:#1C1810;--secondary:#6B6150;--tertiary:#A89880;
+  --accent:#F25E08;--accent-light:#FFF0E5;--accent-dark:#AA3C04;
+  --green:#2A9060;--green-light:#E8F5EE;--green-dark:#1A6644;
+  --red:#E5635A;--red-light:#FEF0EE;--red-dark:#A83028;
+  --sage:#7A8F6F;--sage-light:#EFF2EC;
+  --border:rgba(60,40,20,0.09);--border-md:rgba(60,40,20,0.16);
+  --font:'Noto Sans JP',sans-serif;--mono:'Noto Sans Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);font-family:var(--font);overflow:hidden;color:var(--primary)}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;max-width:430px;margin:0 auto;background:var(--bg)}
+.status-bar{height:env(safe-area-inset-top,0px);background:var(--bg);flex-shrink:0}
+#room-gate{position:fixed;inset:0;background:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;z-index:100;max-width:430px;margin:0 auto}
+#room-gate.hide{display:none}
+.gate-emoji{font-size:52px;margin-bottom:16px}
+.gate-title{font-size:26px;font-weight:700;color:#fff;margin-bottom:8px;text-align:center}
+.gate-sub{font-size:14px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.6;margin-bottom:36px}
+.gate-card{background:#fff;border-radius:20px;padding:24px;width:100%;margin-bottom:16px}
+.gate-card-title{font-size:12px;font-weight:700;color:var(--secondary);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.gate-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:16px;color:var(--primary);outline:none;transition:border-color .15s;letter-spacing:.08em;text-transform:uppercase;font-family:var(--mono)}
+.gate-input:focus{border-color:var(--accent)}
+.gate-btn{width:100%;padding:14px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .15s;margin-top:10px}
+.gate-btn:hover{opacity:.88}
+.gate-btn-primary{background:var(--accent);color:#fff}
+.gate-btn-secondary{background:rgba(255,255,255,0.18);color:#fff;border:1.5px solid rgba(255,255,255,0.45)}
+.gate-divider{color:rgba(255,255,255,0.5);font-size:13px;margin:4px 0}
+.screen{flex:1;overflow-y:auto;display:none;flex-direction:column}
+.screen.active{display:flex}
+.screen::-webkit-scrollbar{display:none}
+.tab-bar{height:calc(49px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:0.5px solid var(--border);display:flex;flex-shrink:0;padding:0 8px;padding-bottom:env(safe-area-inset-bottom,0px);gap:4px}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;border-radius:10px;transition:background .15s;padding:6px 4px;font-family:var(--font)}
+.tab-btn:hover{background:var(--surface-2)}
+.tab-icon{font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center}
+.tab-label{font-size:10px;font-weight:500;color:var(--secondary)}
+.tab-btn.active .tab-label{color:var(--accent-dark);font-weight:700}
+.page-head{padding:18px 20px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-size:20px;font-weight:700;color:var(--primary)}
+.sec-header{display:flex;justify-content:space-between;align-items:center;padding:0 20px;margin-bottom:8px}
+.sec-title{font-size:13px;font-weight:700;color:var(--primary)}
+.sec-link{font-size:12px;color:var(--accent-dark);cursor:pointer;background:none;border:none;font-family:var(--font);font-weight:500}
+.month-switcher{display:flex;align-items:center;padding:0 20px;margin-bottom:12px}
+.month-arrow{width:32px;height:32px;border-radius:8px;border:none;background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--secondary);flex-shrink:0}
+.month-tabs{flex:1;display:flex;gap:4px;padding:0 6px}
+.month-tab{flex:1;padding:6px 4px;border-radius:8px;border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--secondary);background:transparent;text-align:center}
+.month-tab.active{background:var(--accent);color:#fff}
+.bal-card{margin:0 20px 12px;background:var(--accent);border-radius:20px;padding:20px 20px 16px;color:#fff;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(242,94,8,0.25)}
+.bal-card::before{content:'';position:absolute;top:-50px;right:-30px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.07)}
+.bal-card::after{content:'';position:absolute;bottom:-60px;left:-20px;width:160px;height:160px;border-radius:50%;background:rgba(0,0,0,0.06)}
+.bal-label{font-size:11px;opacity:.7;margin-bottom:4px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.bal-amount{font-family:var(--mono);font-size:36px;font-weight:600;letter-spacing:-1px;margin-bottom:14px;line-height:1}
+.bal-row{display:flex;gap:10px;position:relative;z-index:1}
+.bal-person{flex:1;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px}
+.bal-person-name{font-size:10px;opacity:.65;margin-bottom:3px;font-weight:500}
+.bal-person-amt{font-family:var(--mono);font-size:15px;font-weight:600}
+.settle-btn{margin:0 20px 14px;background:var(--green-light);border:0.5px solid rgba(16,185,129,0.25);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;width:calc(100% - 40px);transition:opacity .2s;font-family:var(--font)}
+.settle-btn:hover{opacity:.8}
+.settle-icon{width:34px;height:34px;background:var(--green);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;color:#fff;font-weight:700}
+.settle-title{font-size:12px;font-weight:700;color:var(--green);text-align:left}
+.settle-sub{font-size:11px;color:var(--secondary);text-align:left;margin-top:1px}
+.exp-list{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.exp-item{background:var(--surface);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:opacity .15s}
+.exp-item:hover{opacity:.88}
+.exp-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.exp-body{flex:1;min-width:0}
+.exp-name{font-size:13px;font-weight:500;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exp-meta{font-size:11px;color:var(--secondary);margin-top:2px}
+.exp-right{text-align:right;flex-shrink:0}
+.exp-amt{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--primary)}
+.exp-payer{font-size:11px;color:var(--secondary);margin-top:2px}
+.ic-food{background:#FFF3CD}.ic-rent{background:#DBEAFE}.ic-util{background:#D1FAE5}.ic-fun{background:#FAE8FF}.ic-other{background:#F1F5F9}
+.recurring-badge{display:inline-block;background:var(--sage-light);color:var(--sage);font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.add-form{padding:0 20px;display:flex;flex-direction:column;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.flabel{font-size:11px;font-weight:700;color:var(--secondary);letter-spacing:.07em;text-transform:uppercase}
+.finput{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:14px;color:var(--primary);font-family:var(--font);outline:none;transition:border-color .15s}
+.finput:focus{border-color:var(--accent);background:var(--accent-light)}
+.amt-row{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:10px;border:0.5px solid var(--border);padding:8px 13px;transition:border-color .15s}
+.amt-row:focus-within{border-color:var(--accent);background:var(--accent-light)}
+.amt-prefix{font-family:var(--mono);font-size:22px;color:var(--secondary)}
+.amt-input{border:none;outline:none;font-family:var(--mono);font-size:24px;font-weight:600;color:var(--primary);background:transparent;flex:1;width:0}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.cat-opt{background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:9px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:all .15s}
+.cat-opt.sel{border-color:var(--accent);background:var(--accent-light)}
+.cat-opt-ic{font-size:20px;line-height:1}
+.cat-opt-lb{font-size:10px;font-weight:500;color:var(--secondary)}
+.cat-opt.sel .cat-opt-lb{color:var(--accent);font-weight:700}
+.payer-row{display:flex;gap:8px}
+.payer-btn{flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:12px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--font)}
+.payer-btn.sel{border-color:var(--accent);background:var(--accent-light)}
+.payer-name{font-size:13px;font-weight:700;color:var(--primary)}
+.payer-btn.sel .payer-name{color:var(--accent)}
+.sub-btn{background:var(--accent);color:#fff;border:none;border-radius:13px;padding:15px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .15s;margin-top:2px;box-shadow:0 4px 14px rgba(242,94,8,0.3)}
+.sub-btn:hover{opacity:.9}
+.sub-btn:active{opacity:.8;transform:scale(.99)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:10px;padding:12px 14px;border:0.5px solid var(--border)}
+.toggle-label{font-size:13px;font-weight:500;color:var(--primary)}
+.toggle-sub{font-size:11px;color:var(--secondary);margin-top:2px}
+.toggle{width:44px;height:26px;border-radius:99px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.toggle.on::after{transform:translateX(18px)}
+.hist-filter{display:flex;gap:6px;padding:0 20px 10px;overflow-x:auto}
+.hist-filter::-webkit-scrollbar{display:none}
+.fchip{background:var(--surface);border:0.5px solid var(--border);border-radius:99px;padding:6px 13px;font-size:11px;font-weight:700;color:var(--secondary);white-space:nowrap;cursor:pointer;transition:all .15s;font-family:var(--font)}
+.fchip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hist-month{padding:0 20px 6px;font-size:10px;font-weight:700;color:var(--secondary);letter-spacing:.08em;text-transform:uppercase}
+.hist-list{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.view-toggle{display:flex;gap:4px;background:var(--surface);border-radius:10px;padding:3px;margin:0 20px 10px}
+.view-btn{flex:1;padding:7px;border-radius:8px;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--secondary);background:transparent}
+.view-btn.active{background:var(--accent);color:#fff}
+.graph-wrap{padding:0 20px;display:flex;flex-direction:column;gap:10px}
+.graph-bar-row{display:flex;align-items:center;gap:8px}
+.graph-bar-label{font-size:11px;color:var(--secondary);width:56px;text-align:right;flex-shrink:0}
+.graph-bar-track{flex:1;background:var(--bg);border-radius:99px;height:20px;overflow:hidden}
+.graph-bar-fill{height:100%;border-radius:99px}
+.graph-bar-val{font-family:var(--mono);font-size:11px;color:var(--primary);font-weight:600;width:60px;text-align:right;flex-shrink:0}
+.graph-total{background:var(--surface);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin:10px 20px 0}
+.sum-box{background:var(--surface);border-radius:14px;padding:14px;margin:0 20px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sum-item{text-align:center;padding:10px;background:var(--bg);border-radius:10px}
+.sum-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--primary)}
+.sum-lbl{font-size:10px;color:var(--secondary);margin-top:3px;font-weight:500}
+.set-sec{padding:0 20px;margin-bottom:16px}
+.set-sec-title{font-size:10px;font-weight:700;color:var(--secondary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px}
+.set-card{background:var(--surface);border-radius:14px;overflow:hidden}
+.set-row{padding:13px 15px;display:flex;align-items:center;gap:11px;border-bottom:0.5px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-row-v{padding:13px 15px;display:flex;flex-direction:column;gap:8px;border-bottom:0.5px solid var(--border)}
+.set-row-v:last-child{border-bottom:none}
+.set-row-head{display:flex;align-items:center;gap:8px}
+.set-row-icon{font-size:16px;width:28px;text-align:center}
+.set-row-body{flex:1}
+.set-row-label{font-size:13px;color:var(--primary);font-weight:500}
+.set-row-sub{font-size:11px;color:var(--secondary);margin-top:1px}
+.set-inp-full{width:100%;border:0.5px solid var(--border);border-radius:9px;padding:10px 12px;font-size:14px;font-family:var(--font);color:var(--primary);outline:none;background:var(--bg);transition:border-color .15s}
+.set-inp-full:focus{border-color:var(--accent);background:var(--accent-light)}
+.room-code-display{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent-dark);letter-spacing:.15em;background:var(--accent-light);border-radius:8px;padding:6px 12px;cursor:pointer;user-select:all}
+.rec-item{background:var(--surface);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.rec-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.rec-body{flex:1}
+.rec-name{font-size:13px;font-weight:500;color:var(--primary)}
+.rec-meta{font-size:11px;color:var(--secondary);margin-top:2px}
+.rec-amt{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--primary)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:flex-end;max-width:430px;margin:0 auto}
+.modal-backdrop.show{display:flex}
+.modal{background:var(--surface);border-radius:24px 24px 0 0;padding:20px;width:100%;max-height:88%;overflow-y:auto;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 16px}
+.modal-title{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:16px;text-align:center}
+.modal-form{display:flex;flex-direction:column;gap:12px}
+.modal-actions{display:flex;gap:8px;margin-top:4px}
+.modal-btn{flex:1;padding:13px;border-radius:12px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.modal-btn-save{background:var(--accent);color:#fff}
+.modal-btn-del{background:var(--red-light);color:var(--red-dark)}
+.modal-btn-cancel{background:var(--bg);color:var(--secondary)}
+.toast{position:fixed;bottom:calc(58px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(12px);background:var(--primary);color:#fff;padding:9px 18px;border-radius:99px;font-size:12px;font-weight:700;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap;font-family:var(--font)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;padding:40px 20px;color:var(--secondary);font-size:13px}
+.online-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+
+<div id="room-gate">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="680 225 595 668" width="72" height="81" style="margin-bottom:4px">
+    <style>.gi0{fill:rgba(255,255,255,0.68)}.gi1{fill:rgba(242,94,8,0.68)}.gi2{fill:rgba(255,255,255,0.63)}.gi3{fill:rgba(255,255,255,0.85)}.gi4{fill:rgba(255,255,255,0.96)}</style>
+    <path class="gi0" d="M1060.7,331.5c-1.7-.4-3.7.3-4.4-2.1l-75-4c7-15.7,10.6-27.6,5.3-44.8-.6-1.8-5.8-14.6-6.3-15.2,0-.1-1.7-.2-2.5-1-3.9-4.1-8-7.6-12.5-11-17.3-7.5-31-9.8-48.7-1.2-25.8,12.6-36.5,52.3-17.3,74.2.6.7,4,2.7,4,3.5l-1.7,1.3c-11.3,1.4-22.4,4.1-33.3,7.2-89.9,25-147.5,93.5-163.7,184.8-3.7,20.6-10.6,51.9,9.4,66l12.3,6.2c2.1-5.6,4.5-11.6,7-17,.7-3.8-.6-2.4-2.2-3.3-9.2-5.3-9.3-8.9-8.9-19.3,1.5-34.6,15.1-79.4,32.9-109.1,47.1-78.9,133.8-99.9,220.6-100.4,116.1-.6,213.8,32.7,249.8,152.3,5,16.5,12.6,48.7,10.8,65.3-.6,5.4-6.6,12.2-12.1,12.4,2.3,6.4,5.5,12.6,8,19,10.7-4.5,19.3-9.4,23.5-21,6.7-18.6-3.3-62.2-9.2-81.7-28.7-95.1-91.4-140.9-185.8-161.2Z"/>
+    <path class="gi3" d="M981.3,325.4l75,4c20.7-22,14.1-62-12.3-76.2-17.4-9.4-31.1-7.6-48.7-.8-5.4,3.8-11.1,7.5-15,13,.5.7,5.7,13.4,6.3,15.2,5.4,17.2,1.8,29-5.3,44.8ZM992.8,271.5c.8-2.4,6.7-8.2,9.2-8.8,18.3-4.7,28,17.1,13.7,27.7-12.5,9.3-28-4.1-22.9-18.9Z"/>
+    <path class="gi4" d="M1232.3,595.4c-2.5-6.4-5.7-12.6-8-19-5.4.2-13.7-4.6-15.5-10-1.8-12.3-2.1-24.8-4.5-37-1.6-8.3-4.4-20-7-28-20-62.6-75.9-113.4-143-120-11.5-2-23.4-4.1-35-5-20-1.6-43.9-1.9-64-1-12.2.5-25.6,2.3-38,4-87.7,12.4-144.3,58.6-162,147,3.9,1.5.3,4.1,0,6.6-.3,2.7-1,8.9-1,10.9v18c0,.2-2.3,2.5-3,2.5,0-1.3,0-2.7,0-4-1,6.3-4.4,12.5-11,14.5-4.6,1.4-4.7-1.6-7,3.5-2.5,5.4-4.9,11.4-7,17-41.6,110.5-10.6,187,100.2,227.3,30.2,11,61.9,17.8,93.8,21.7,40,4.9,78,4.8,118,0,80.2-9.7,188.2-42.1,208.5-132,8.4-37.4-1-81.8-14.5-117Z"/>
+    <path class="gi4" d="M751.3,560.4c0,1.3,0,2.7,0,4,.7,0,3-2.3,3-2.5v-18c0-2,.8-8.2,1-10.9.2-2.4,3.9-5,0-6.6-2.2,11-4.4,22.7-4,34Z"/>
+    <path class="gi2" d="M1202.7,510.4c-.5-2.5,1.3-4.2-.9-6.1-.8-.7-2.2,0-2.4-.1-.7-.7-.9-5.5-2.2-2.8,2.6,8,5.4,19.7,7,28,2.7-6.8-.4-12.8-1.6-19Z"/>
+    <path style="fill:rgba(255,255,255,0.97)" d="M1015.7,290.4c14.3-10.6,4.5-32.4-13.7-27.7-2.5.6-8.4,6.4-9.2,8.8-5,14.8,10.4,28.3,22.9,18.9Z"/>
+    <path class="gi2" d="M1225.5,498.7c-36-119.5-133.7-152.9-249.8-152.3-86.8.5-173.5,21.4-220.6,100.4-17.7,29.7-31.4,74.5-32.9,109.1-.4,10.4-.4,14,8.9,19.3,1.6.9,2.8-.5,2.2,3.3,2.3-5,2.5-2,7-3.5,6.6-2.1,9.9-8.2,11-14.5-.4-11.3,1.8-23,4-34,17.7-88.4,74.3-134.6,162-147,12.4-1.7,25.8-3.5,38-4,20.1-.9,44-.6,64,1,11.6.9,23.5,3,35,5,67.1,6.6,123,57.4,143,120,1.2-2.7,1.4,2.1,2.2,2.8.2.1,1.5-.6,2.4.1,2.2,1.9.4,3.6.9,6.1,1.2,6.2,4.3,12.2,1.6,19,2.3,12.2,2.6,24.7,4.5,37,1.9,5.4,10.1,10.2,15.5,10,5.5-.2,11.5-7.1,12.1-12.4,1.8-16.6-5.8-48.8-10.8-65.3Z"/>
+    <path class="gi1" d="M1048,640.1c10.3,0,18.7-8.4,18.7-18.7s-8.4-18.4-18.7-18.4h-25.5l41.9-65.1c6.2-9.3,3.4-22.1-6.1-28.5-4.7-3.1-10.2-4.1-15.6-2.8-5.1,1.2-9.6,4.4-12.6,8.9l-52.4,81.4-51.4-80.6c-2.8-4.6-7.3-7.8-12.7-8.9-5.5-1.2-11.3-.1-15.9,3-9.6,6.4-12.3,18.8-6.1,28.2l41.4,64.5h-24.9c-10.3,0-18.7,8.3-18.7,18.4s8.4,18.7,18.7,18.7h48.7v9.6h-48.7c-10.3,0-18.7,8.3-18.7,18.4s8.4,18.4,18.7,18.4h48.7v54.9c0,11.5,9.4,20.9,20.9,20.9s21.2-9.4,21.2-20.9v-54.9h49.3c10.3,0,18.7-8.3,18.7-18.4s-8.4-18.4-18.7-18.4h-49.3v-9.6h49.3Z"/>
+  </svg>
+  <div class="gate-title">ふたりの家計</div>
+  <div class="gate-sub">パートナーとお金の管理を<br>シンプルに、リアルタイムで。</div>
+  <div class="gate-card">
+    <div class="gate-card-title">ルームコード</div>
+    <input class="gate-input" id="room-input" type="text" maxlength="6" placeholder="XXXXXX" oninput="this.value=this.value.toUpperCase()">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;user-select:none">
+      <div id="save-checkbox" onclick="toggleSaveCode()" style="width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s">
+        <svg id="save-check-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" style="display:none">
+          <path d="M2 6L5 9L10 3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span style="font-size:13px;color:var(--secondary);font-weight:500">ルームコードを保存する</span>
+    </label>
+    <button class="gate-btn gate-btn-primary" onclick="joinRoom()" style="margin-top:12px">参加する</button>
+    <div id="saved-room-area" style="display:none;margin-top:10px">
+      <div style="font-size:11px;color:var(--secondary);margin-bottom:6px;text-align:center">— 保存済みコード —</div>
+      <div id="saved-room-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+  <div class="gate-divider">または</div>
+  <button class="gate-btn gate-btn-secondary" style="width:100%;margin-top:8px" onclick="createRoom()">新しいルームを作る</button>
+</div>
+
+<div id="app" style="display:none">
+  <div class="status-bar"></div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="page-head">
+      <div>
+        <div style="font-size:12px;color:var(--secondary);margin-bottom:2px"><span class="online-dot"></span><span id="online-label">同期中...</span></div>
+        <div class="page-title">共同支出</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--secondary);background:var(--surface);padding:4px 10px;border-radius:99px;letter-spacing:.1em" id="room-badge"></div>
+    </div>
+    <div class="month-switcher">
+      <button class="month-arrow" onclick="shiftMonth(-1)">‹</button>
+      <div class="month-tabs" id="home-month-tabs"></div>
+      <button class="month-arrow" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="bal-card">
+      <div class="bal-label">差額（現在）</div>
+      <div class="bal-amount" id="balance-display">¥0</div>
+      <div class="bal-row">
+        <div class="bal-person"><div class="bal-person-name" id="home-p1-label">ユーザーA</div><div class="bal-person-amt" id="p1-total">¥0</div></div>
+        <div class="bal-person"><div class="bal-person-name" id="home-p2-label">ユーザーB</div><div class="bal-person-amt" id="p2-total">¥0</div></div>
+      </div>
+    </div>
+    <div id="settle-area" style="display:none">
+      <button class="settle-btn" onclick="settle()">
+        <div class="settle-icon">✓</div>
+        <div><div class="settle-title" id="settle-title">精算する</div><div class="settle-sub">タップで今月の精算を完了</div></div>
+      </button>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">最近の支出</div>
+      <button class="sec-link" onclick="switchTab('history')">すべて →</button>
+    </div>
+    <div class="exp-list" id="recent-list"></div>
+    <div style="height:16px"></div>
+  </div>
+
+  <!-- ADD -->
+  <div class="screen" id="screen-add">
+    <div class="page-head"><div class="page-title">支出を追加</div></div>
+    <div class="add-form">
+      <div class="fg"><div class="flabel">金額</div><div class="amt-row"><span class="amt-prefix">¥</span><input class="amt-input" id="inp-amount" type="number" placeholder="0" inputmode="numeric"></div></div>
+      <div class="fg"><div class="flabel">メモ</div><input class="finput" id="inp-memo" type="text" placeholder="何に使いましたか？"></div>
+      <div class="fg"><div class="flabel">日付</div><input class="finput" id="inp-date" type="date"></div>
+      <div class="fg">
+        <div class="flabel">カテゴリ</div>
+        <div class="cat-grid">
+          <div class="cat-opt sel" data-cat="食費" onclick="selCat(this)"><span class="cat-opt-ic">🍜</span><span class="cat-opt-lb">食費</span></div>
+          <div class="cat-opt" data-cat="家賃" onclick="selCat(this)"><span class="cat-opt-ic">🏠</span><span class="cat-opt-lb">家賃</span></div>
+          <div class="cat-opt" data-cat="光熱費" onclick="selCat(this)"><span class="cat-opt-ic">💡</span><span class="cat-opt-lb">光熱費</span></div>
+          <div class="cat-opt" data-cat="娯楽" onclick="selCat(this)"><span class="cat-opt-ic">🎉</span><span class="cat-opt-lb">娯楽</span></div>
+          <div class="cat-opt" data-cat="日用品" onclick="selCat(this)"><span class="cat-opt-ic">🧴</span><span class="cat-opt-lb">日用品</span></div>
+          <div class="cat-opt" data-cat="交通" onclick="selCat(this)"><span class="cat-opt-ic">🚃</span><span class="cat-opt-lb">交通</span></div>
+          <div class="cat-opt" data-cat="医療" onclick="selCat(this)"><span class="cat-opt-ic">🏥</span><span class="cat-opt-lb">医療</span></div>
+          <div class="cat-opt" data-cat="その他" onclick="selCat(this)"><span class="cat-opt-ic">📦</span><span class="cat-opt-lb">その他</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="flabel">支払った人</div>
+        <div class="payer-row">
+          <button class="payer-btn sel" id="payer-1" onclick="selPayer(1)"><div class="payer-name" id="add-p1-name">ユーザーA</div></button>
+          <button class="payer-btn" id="payer-2" onclick="selPayer(2)"><div class="payer-name" id="add-p2-name">ユーザーB</div></button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">固定費として登録</div><div class="toggle-sub">毎月自動で追加されます</div></div>
+        <div class="toggle" id="recurring-toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <button class="sub-btn" onclick="addExpense()">追加する</button>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="screen" id="screen-history">
+    <div class="page-head"><div class="page-title">履歴</div></div>
+    <div class="month-switcher">
+      <button class="month-arrow" onclick="shiftMonth(-1)">‹</button>
+      <div class="month-tabs" id="hist-month-tabs"></div>
+      <button class="month-arrow" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="view-list-btn" onclick="setView('list')">📋 リスト</button>
+      <button class="view-btn" id="view-graph-btn" onclick="setView('graph')">📊 グラフ</button>
+    </div>
+    <div id="hist-list-view">
+      <div class="hist-month" id="hist-month-label"></div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+    <div id="hist-graph-view" style="display:none;padding:0 20px 0">
+      <canvas id="pie-chart" style="display:block;margin:12px auto 16px;width:280px;height:280px"></canvas>
+      <div id="pie-legend" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+      <div class="graph-total">
+        <div style="font-size:12px;color:var(--secondary);font-weight:500">合計</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--primary)" id="graph-total-val">¥0</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <div class="page-head"><div class="page-title">設定</div></div>
+    <div class="sum-box">
+      <div class="sum-item"><div class="sum-val" id="sum-total">¥0</div><div class="sum-lbl">今月の合計</div></div>
+      <div class="sum-item"><div class="sum-val" id="sum-count">0件</div><div class="sum-lbl">支出件数</div></div>
+      <div class="sum-item"><div class="sum-val" id="sum-p1">¥0</div><div class="sum-lbl" id="sum-p1-lbl">ユーザーAが支払</div></div>
+      <div class="sum-item"><div class="sum-val" id="sum-p2">¥0</div><div class="sum-lbl" id="sum-p2-lbl">ユーザーBが支払</div></div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">ルーム情報</div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-row-icon">🔑</span>
+          <div class="set-row-body"><div class="set-row-label">ルームコード</div><div class="set-row-sub">タップでコピー → パートナーに共有</div></div>
+          <div class="room-code-display" id="room-code-display" onclick="copyRoomCode()"></div>
+        </div>
+        <div class="set-row">
+          <span class="set-row-icon">🟢</span>
+          <div class="set-row-body"><div class="set-row-label">接続状態</div></div>
+          <span style="font-size:12px;color:var(--green);font-weight:700">リアルタイム同期中</span>
+        </div>
+      </div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">プロフィール</div>
+      <div class="set-card">
+        <div class="set-row-v">
+          <div class="set-row-head"><span class="set-row-icon">👤</span><div class="set-row-label">ユーザーA の名前</div></div>
+          <input class="set-inp-full" id="name-p1" placeholder="名前を入力" oninput="updateNames()">
+        </div>
+        <div class="set-row-v">
+          <div class="set-row-head"><span class="set-row-icon">👤</span><div class="set-row-label">ユーザーB の名前</div></div>
+          <input class="set-inp-full" id="name-p2" placeholder="名前を入力" oninput="updateNames()">
+        </div>
+      </div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">固定費の管理</div>
+      <div id="recurring-list"></div>
+      <button style="width:100%;padding:12px;border-radius:11px;border:1.5px dashed var(--border);background:transparent;font-size:13px;font-weight:700;color:var(--secondary);cursor:pointer;font-family:var(--font)" onclick="openAddRecurringModal()">＋ 固定費を追加</button>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">割り勘設定</div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-row-icon">⚖️</span>
+          <div class="set-row-body"><div class="set-row-label">分担ルール</div><div class="set-row-sub">均等割り（50:50）</div></div>
+          <span style="color:var(--accent);font-weight:700;font-size:11px">固定</span>
+        </div>
+      </div>
+    </div>
+    <div class="set-sec">
+      <div class="set-sec-title">データ</div>
+      <div class="set-card">
+        <div class="set-row" onclick="clearData()" style="cursor:pointer">
+          <span class="set-row-icon">🗑</span>
+          <div class="set-row-body"><div class="set-row-label" style="color:var(--red)">今月のデータをリセット</div></div>
+        </div>
+        <div class="set-row" onclick="leaveRoom()" style="cursor:pointer">
+          <span class="set-row-icon">🚪</span>
+          <div class="set-row-body"><div class="set-row-label" style="color:var(--secondary)">ルームから退出</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
+      <span class="tab-icon">
+        <!-- home active -->
+        <svg id="icon-home-active" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block">
+          <path d="M3.5 13.5L14 4.5L24.5 13.5V24C24.5 24.28 24.28 24.5 24 24.5H18.5V18C18.5 17.72 18.28 17.5 18 17.5H10C9.72 17.5 9.5 17.72 9.5 18V24.5H4C3.72 24.5 3.5 24.28 3.5 24V13.5Z" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M9.5 24.5V18H18.5V24.5" stroke="var(--accent-dark)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <!-- home inactive -->
+        <svg id="icon-home-inactive" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:none">
+          <path d="M3.5 13.5L14 4.5L24.5 13.5V24C24.5 24.28 24.28 24.5 24 24.5H18.5V18C18.5 17.72 18.28 17.5 18 17.5H10C9.72 17.5 9.5 17.72 9.5 18V24.5H4C3.72 24.5 3.5 24.28 3.5 24V13.5Z" stroke="var(--tertiary)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+        </svg>
+      </span>
+      <span class="tab-label">ホーム</span>
+    </button>
+    <button class="tab-btn" id="tab-add" onclick="switchTab('add')">
+      <span class="tab-icon">
+        <svg id="icon-add-active" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:none">
+          <circle cx="14" cy="14" r="10.5" fill="var(--accent)"/>
+          <path d="M14 9V19M9 14H19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <svg id="icon-add-inactive" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block">
+          <circle cx="14" cy="14" r="10.5" stroke="var(--tertiary)" stroke-width="1.6" fill="none"/>
+          <path d="M14 9V19M9 14H19" stroke="var(--tertiary)" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="tab-label">追加</span>
+    </button>
+    <button class="tab-btn" id="tab-history" onclick="switchTab('history')">
+      <span class="tab-icon">
+        <svg id="icon-history-active" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:none">
+          <rect x="5" y="3.5" width="18" height="21" rx="3.5" fill="var(--accent)"/>
+          <path d="M9 9.5H19M9 13.5H16M9 17.5H13" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <svg id="icon-history-inactive" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block">
+          <rect x="5" y="3.5" width="18" height="21" rx="3.5" stroke="var(--tertiary)" stroke-width="1.6" fill="none"/>
+          <path d="M9 9.5H19M9 13.5H16M9 17.5H13" stroke="var(--tertiary)" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="tab-label">履歴</span>
+    </button>
+    <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">
+      <span class="tab-icon">
+        <svg id="icon-settings-active" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:none">
+          <path d="M11.5 3.8C11.8 2.7 13.2 2.7 13.5 3.8L14.2 6.2C14.9 6.4 15.6 6.7 16.2 7.1L18.5 6.2C19.6 5.8 20.6 6.8 20.2 7.9L19.3 10.2C19.7 10.8 20 11.5 20.2 12.2L22.6 12.9C23.7 13.2 23.7 14.6 22.6 14.9L20.2 15.6C20 16.3 19.7 17 19.3 17.6L20.2 19.9C20.6 21 19.6 22 18.5 21.6L16.2 20.7C15.6 21.1 14.9 21.4 14.2 21.6L13.5 24C13.2 25.1 11.8 25.1 11.5 24L10.8 21.6C10.1 21.4 9.4 21.1 8.8 20.7L6.5 21.6C5.4 22 4.4 21 4.8 19.9L5.7 17.6C5.3 17 5 16.3 4.8 15.6L2.4 14.9C1.3 14.6 1.3 13.2 2.4 12.9L4.8 12.2C5 11.5 5.3 10.8 5.7 10.2L4.8 7.9C4.4 6.8 5.4 5.8 6.5 6.2L8.8 7.1C9.4 6.7 10.1 6.4 10.8 6.2Z" fill="var(--accent)" stroke="var(--accent)" stroke-width="0.5" stroke-linejoin="round"/>
+          <circle cx="12.5" cy="14" r="3.8" fill="var(--accent-light)"/>
+        </svg>
+        <svg id="icon-settings-inactive" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block">
+          <path d="M11.5 3.8C11.8 2.7 13.2 2.7 13.5 3.8L14.2 6.2C14.9 6.4 15.6 6.7 16.2 7.1L18.5 6.2C19.6 5.8 20.6 6.8 20.2 7.9L19.3 10.2C19.7 10.8 20 11.5 20.2 12.2L22.6 12.9C23.7 13.2 23.7 14.6 22.6 14.9L20.2 15.6C20 16.3 19.7 17 19.3 17.6L20.2 19.9C20.6 21 19.6 22 18.5 21.6L16.2 20.7C15.6 21.1 14.9 21.4 14.2 21.6L13.5 24C13.2 25.1 11.8 25.1 11.5 24L10.8 21.6C10.1 21.4 9.4 21.1 8.8 20.7L6.5 21.6C5.4 22 4.4 21 4.8 19.9L5.7 17.6C5.3 17 5 16.3 4.8 15.6L2.4 14.9C1.3 14.6 1.3 13.2 2.4 12.9L4.8 12.2C5 11.5 5.3 10.8 5.7 10.2L4.8 7.9C4.4 6.8 5.4 5.8 6.5 6.2L8.8 7.1C9.4 6.7 10.1 6.4 10.8 6.2Z" stroke="var(--tertiary)" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+          <circle cx="12.5" cy="14" r="3.8" stroke="var(--tertiary)" stroke-width="1.4" fill="none"/>
+        </svg>
+      </span>
+      <span class="tab-label">設定</span>
+    </button>
+  </div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">支出を編集</div>
+    <div class="modal-form">
+      <div class="fg"><div class="flabel">金額</div><div class="amt-row"><span class="amt-prefix">¥</span><input class="amt-input" id="edit-amount" type="number" inputmode="numeric"></div></div>
+      <div class="fg"><div class="flabel">メモ</div><input class="finput" id="edit-memo" type="text"></div>
+      <div class="fg"><div class="flabel">日付</div><input class="finput" id="edit-date" type="date"></div>
+      <div class="fg">
+        <div class="flabel">カテゴリ</div>
+        <div class="cat-grid" id="edit-cat-grid">
+          <div class="cat-opt" data-cat="食費" onclick="selEditCat(this)"><span class="cat-opt-ic">🍜</span><span class="cat-opt-lb">食費</span></div>
+          <div class="cat-opt" data-cat="家賃" onclick="selEditCat(this)"><span class="cat-opt-ic">🏠</span><span class="cat-opt-lb">家賃</span></div>
+          <div class="cat-opt" data-cat="光熱費" onclick="selEditCat(this)"><span class="cat-opt-ic">💡</span><span class="cat-opt-lb">光熱費</span></div>
+          <div class="cat-opt" data-cat="娯楽" onclick="selEditCat(this)"><span class="cat-opt-ic">🎉</span><span class="cat-opt-lb">娯楽</span></div>
+          <div class="cat-opt" data-cat="日用品" onclick="selEditCat(this)"><span class="cat-opt-ic">🧴</span><span class="cat-opt-lb">日用品</span></div>
+          <div class="cat-opt" data-cat="交通" onclick="selEditCat(this)"><span class="cat-opt-ic">🚃</span><span class="cat-opt-lb">交通</span></div>
+          <div class="cat-opt" data-cat="医療" onclick="selEditCat(this)"><span class="cat-opt-ic">🏥</span><span class="cat-opt-lb">医療</span></div>
+          <div class="cat-opt" data-cat="その他" onclick="selEditCat(this)"><span class="cat-opt-ic">📦</span><span class="cat-opt-lb">その他</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="flabel">支払った人</div>
+        <div class="payer-row">
+          <button class="payer-btn sel" id="edit-payer-1" onclick="selEditPayer(1)"><div class="payer-name" id="edit-p1-name">ユーザーA</div></button>
+          <button class="payer-btn" id="edit-payer-2" onclick="selEditPayer(2)"><div class="payer-name" id="edit-p2-name">ユーザーB</div></button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-del" onclick="deleteExpense()">削除</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">キャンセル</button>
+        <button class="modal-btn modal-btn-save" onclick="saveExpense()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 固定費追加モーダル -->
+<div class="modal-backdrop" id="rec-add-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">固定費を追加</div>
+    <div class="modal-form">
+      <div class="fg"><div class="flabel">金額</div><div class="amt-row"><span class="amt-prefix">¥</span><input class="amt-input" id="rec-add-amount" type="number" inputmode="numeric" placeholder="0"></div></div>
+      <div class="fg"><div class="flabel">メモ</div><input class="finput" id="rec-add-memo" type="text" placeholder="家賃・電気代など"></div>
+      <div class="fg">
+        <div class="flabel">カテゴリ</div>
+        <div class="cat-grid" id="rec-add-cat-grid">
+          <div class="cat-opt" data-cat="食費" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">🍜</span><span class="cat-opt-lb">食費</span></div>
+          <div class="cat-opt sel" data-cat="家賃" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">🏠</span><span class="cat-opt-lb">家賃</span></div>
+          <div class="cat-opt" data-cat="光熱費" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">💡</span><span class="cat-opt-lb">光熱費</span></div>
+          <div class="cat-opt" data-cat="娯楽" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">🎉</span><span class="cat-opt-lb">娯楽</span></div>
+          <div class="cat-opt" data-cat="日用品" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">🧴</span><span class="cat-opt-lb">日用品</span></div>
+          <div class="cat-opt" data-cat="交通" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">🚃</span><span class="cat-opt-lb">交通</span></div>
+          <div class="cat-opt" data-cat="医療" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">🏥</span><span class="cat-opt-lb">医療</span></div>
+          <div class="cat-opt" data-cat="その他" onclick="selRecCat(this,'add')"><span class="cat-opt-ic">📦</span><span class="cat-opt-lb">その他</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="flabel">支払った人</div>
+        <div class="payer-row">
+          <button class="payer-btn sel" id="rec-add-payer-1" onclick="selRecPayer(1,'add')"><div class="payer-name" id="rec-add-p1-name">ユーザーA</div></button>
+          <button class="payer-btn" id="rec-add-payer-2" onclick="selRecPayer(2,'add')"><div class="payer-name" id="rec-add-p2-name">ユーザーB</div></button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeRecModal('add')">キャンセル</button>
+        <button class="modal-btn modal-btn-save" onclick="saveRecurringAdd()">追加する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 固定費編集モーダル -->
+<div class="modal-backdrop" id="rec-edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">固定費を編集</div>
+    <div class="modal-form">
+      <div class="fg"><div class="flabel">金額</div><div class="amt-row"><span class="amt-prefix">¥</span><input class="amt-input" id="rec-edit-amount" type="number" inputmode="numeric"></div></div>
+      <div class="fg"><div class="flabel">メモ</div><input class="finput" id="rec-edit-memo" type="text"></div>
+      <div class="fg">
+        <div class="flabel">カテゴリ</div>
+        <div class="cat-grid" id="rec-edit-cat-grid">
+          <div class="cat-opt" data-cat="食費" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">🍜</span><span class="cat-opt-lb">食費</span></div>
+          <div class="cat-opt" data-cat="家賃" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">🏠</span><span class="cat-opt-lb">家賃</span></div>
+          <div class="cat-opt" data-cat="光熱費" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">💡</span><span class="cat-opt-lb">光熱費</span></div>
+          <div class="cat-opt" data-cat="娯楽" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">🎉</span><span class="cat-opt-lb">娯楽</span></div>
+          <div class="cat-opt" data-cat="日用品" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">🧴</span><span class="cat-opt-lb">日用品</span></div>
+          <div class="cat-opt" data-cat="交通" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">🚃</span><span class="cat-opt-lb">交通</span></div>
+          <div class="cat-opt" data-cat="医療" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">🏥</span><span class="cat-opt-lb">医療</span></div>
+          <div class="cat-opt" data-cat="その他" onclick="selRecCat(this,'edit')"><span class="cat-opt-ic">📦</span><span class="cat-opt-lb">その他</span></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="flabel">支払った人</div>
+        <div class="payer-row">
+          <button class="payer-btn sel" id="rec-edit-payer-1" onclick="selRecPayer(1,'edit')"><div class="payer-name" id="rec-edit-p1-name">ユーザーA</div></button>
+          <button class="payer-btn" id="rec-edit-payer-2" onclick="selRecPayer(2,'edit')"><div class="payer-name" id="rec-edit-p2-name">ユーザーB</div></button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-del" onclick="deleteRecurring()">削除</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeRecModal('edit')">キャンセル</button>
+        <button class="modal-btn modal-btn-save" onclick="saveRecurringEdit()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDDn-OhnVrotiiNA2BuLRFYuo1xxGGVHkU",
+  authDomain: "couple-money-app-7d192.firebaseapp.com",
+  databaseURL: "https://couple-money-app-7d192-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "couple-money-app-7d192",
+  storageBucket: "couple-money-app-7d192.firebasestorage.app",
+  messagingSenderId: "479141705393",
+  appId: "1:479141705393:web:91f602899a0f69e1d89490"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let roomId=null, roomRef=null;
+let allExpenses={};
+let members={p1:'',p2:''};
+let recurringList=[];
+let selCatVal='食費', selPayerVal=1, filterCatVal='全て';
+let editingKey=null, editingMonth=null;
+let selEditCatVal='食費', selEditPayerVal=1;
+let curMonthIdx=2;
+
+const CAT_META={
+  '食費':{icon:'🍜',cls:'ic-food',color:'#FDE68A'},
+  '家賃':{icon:'🏠',cls:'ic-rent',color:'#BFDBFE'},
+  '光熱費':{icon:'💡',cls:'ic-util',color:'#A7F3D0'},
+  '娯楽':{icon:'🎉',cls:'ic-fun',color:'#F5D0FE'},
+  '日用品':{icon:'🧴',cls:'ic-other',color:'#E5E7EB'},
+  '交通':{icon:'🚃',cls:'ic-other',color:'#E5E7EB'},
+  '医療':{icon:'🏥',cls:'ic-other',color:'#FEE2E2'},
+  'その他':{icon:'📦',cls:'ic-other',color:'#E5E7EB'},
+};
+const fmt=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+
+function getMonths(){
+  const now=new Date();
+  return [-2,-1,0].map(o=>{
+    const d=new Date(now.getFullYear(),now.getMonth()+o,1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  });
+}
+function monthLabel(key){const[,m]=key.split('-');return`${parseInt(m)}月`}
+function curMonthKey(){return getMonths()[curMonthIdx]}
+function curExpenses(){return allExpenses[curMonthKey()]||[]}
+
+function shiftMonth(dir){
+  const next=curMonthIdx+dir;
+  if(next<0||next>=3)return;
+  curMonthIdx=next;
+  renderMonthTabs();
+  renderHome();
+  renderHistory();
+}
+
+function renderMonthTabs(){
+  const months=getMonths();
+  ['home-month-tabs','hist-month-tabs'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.innerHTML=months.map((m,i)=>
+      `<button class="month-tab ${i===curMonthIdx?'active':''}" onclick="setMonthIdx(${i})">${monthLabel(m)}</button>`
+    ).join('');
+  });
+  const lbl=document.getElementById('hist-month-label');
+  if(lbl)lbl.textContent=monthLabel(curMonthKey());
+}
+
+function setMonthIdx(i){curMonthIdx=i;renderMonthTabs();renderHome();renderHistory()}
+
+function genRoomId(){return Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('')}
+function createRoom(){document.getElementById('room-input').value=genRoomId();joinRoom()}
+function joinRoom(){
+  const id=document.getElementById('room-input').value.trim().toUpperCase();
+  if(id.length<4){alert('ルームコードを入力してください');return}
+  roomId=id;localStorage.setItem('roomId',id);
+  if(wantSaveCode) saveRoomCode(id);
+  startApp();
+}
+function leaveRoom(){
+  if(!confirm('ルームから退出しますか？'))return;
+  if(roomRef)roomRef.off();
+  localStorage.removeItem('roomId');location.reload();
+}
+
+let wantSaveCode = false;
+
+function toggleSaveCode(){
+  wantSaveCode = !wantSaveCode;
+  const box = document.getElementById('save-checkbox');
+  const icon = document.getElementById('save-check-icon');
+  if(box){ box.style.background = wantSaveCode ? '#F25E08' : 'var(--surface)'; box.style.borderColor = wantSaveCode ? '#F25E08' : 'var(--border)'; }
+  if(icon) icon.style.display = wantSaveCode ? 'block' : 'none';
+}
+
+function getSavedRooms(){
+  try { return JSON.parse(localStorage.getItem('savedRooms')||'[]'); } catch{ return []; }
+}
+function saveRoomCode(id){
+  const saved=getSavedRooms();
+  if(!saved.includes(id)){ saved.unshift(id); localStorage.setItem('savedRooms',JSON.stringify(saved.slice(0,5))); }
+  renderSavedRooms();
+}
+function deleteSavedRoom(id){
+  const saved=getSavedRooms().filter(r=>r!==id);
+  localStorage.setItem('savedRooms',JSON.stringify(saved));
+  renderSavedRooms();
+}
+function renderSavedRooms(){
+  const saved=getSavedRooms();
+  const area=document.getElementById('saved-room-area');
+  const list=document.getElementById('saved-room-list');
+  if(!area||!list)return;
+  if(!saved.length){ area.style.display='none'; return; }
+  area.style.display='block';
+  list.innerHTML=saved.map(id=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="document.getElementById('room-input').value='${id}';wantSaveCode=true;joinRoom()" style="flex:1;background:rgba(67,97,238,0.08);border:1.5px solid rgba(67,97,238,0.2);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:15px;letter-spacing:.1em;color:var(--primary);cursor:pointer;text-align:center;font-weight:600">${id}</button>
+      <button onclick="deleteSavedRoom('${id}')" style="width:32px;height:32px;border-radius:8px;border:none;background:var(--red-light);color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">×</button>
+    </div>`).join('');
+}
+function startApp(){
+  document.getElementById('room-gate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('room-badge').textContent=roomId;
+  document.getElementById('room-code-display').textContent=roomId;
+  document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
+  roomRef=db.ref('rooms/'+roomId);
+  roomRef.child('members').on('value',snap=>{
+    const v=snap.val()||{};
+    members={p1:v.p1||'',p2:v.p2||''};
+    document.getElementById('name-p1').value=members.p1;
+    document.getElementById('name-p2').value=members.p2;
+    applyNamesToUI();
+  });
+  roomRef.child('expenses').on('value',snap=>{
+    allExpenses={};
+    const v=snap.val()||{};
+    Object.entries(v).forEach(([month,items])=>{
+      allExpenses[month]=Object.entries(items).map(([k,e])=>({...e,_key:k,_month:month}));
+      allExpenses[month].sort((a,b)=>(b.ts||0)-(a.ts||0));
+    });
+    renderMonthTabs();renderHome();renderHistory();renderSettings();
+    document.getElementById('online-label').textContent='同期中';
+  });
+  roomRef.child('recurring').on('value',snap=>{
+    const v=snap.val()||{};
+    recurringList=Object.entries(v).map(([k,r])=>({...r,_key:k}));
+    renderRecurringList();
+    applyRecurringToCurrentMonth();
+  });
+  renderMonthTabs();
+}
+
+function updateNames(){
+  const p1=document.getElementById('name-p1').value;
+  const p2=document.getElementById('name-p2').value;
+  members={p1,p2};
+  roomRef.child('members').set({p1,p2});
+  applyNamesToUI();
+}
+
+function applyNamesToUI(){
+  const p1=members.p1||'ユーザーA', p2=members.p2||'ユーザーB';
+  document.getElementById('home-p1-label').textContent=p1;
+  document.getElementById('home-p2-label').textContent=p2;
+  document.getElementById('add-p1-name').textContent=p1;
+  document.getElementById('add-p2-name').textContent=p2;
+  document.getElementById('edit-p1-name').textContent=p1;
+  document.getElementById('edit-p2-name').textContent=p2;
+  document.getElementById('sum-p1-lbl').textContent=p1+'が支払';
+  document.getElementById('sum-p2-lbl').textContent=p2+'が支払';
+  // 固定費モーダルの名前も更新
+  ['rec-add-p1-name','rec-edit-p1-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=p1});
+  ['rec-add-p2-name','rec-edit-p2-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=p2});
+  renderHome();renderHistory();renderSettings();renderRecurringList();
+}
+
+function payerName(payer){return payer===1?(members.p1||'ユーザーA'):(members.p2||'ユーザーB')}
+
+function calcBal(exps){
+  let p1=0,p2=0;
+  exps.forEach(e=>{if(e.payer===1)p1+=e.amount;else p2+=e.amount});
+  return{p1,p2,diff:p1-p2};
+}
+
+function renderHome(){
+  const exps=curExpenses();
+  const{p1,p2,diff}=calcBal(exps);
+  document.getElementById('p1-total').textContent=fmt(p1);
+  document.getElementById('p2-total').textContent=fmt(p2);
+  const abs=Math.abs(diff);
+  const sa=document.getElementById('settle-area');
+  if(abs>0){
+    document.getElementById('balance-display').textContent=fmt(abs);
+    const payer=diff>0?(members.p2||'ユーザーB'):(members.p1||'ユーザーA');
+    const payee=diff>0?(members.p1||'ユーザーA'):(members.p2||'ユーザーB');
+    document.getElementById('settle-title').textContent=`${payer} → ${payee} ${fmt(abs/2)}`;
+    sa.style.display='block';
+  }else{
+    document.getElementById('balance-display').textContent='差額なし';
+    sa.style.display='none';
+  }
+  const list=document.getElementById('recent-list');
+  const recent=exps.slice(0,4);
+  list.innerHTML=recent.length?recent.map(e=>expHTML(e)).join(''):'<div class="empty">まだ支出がありません</div>';
+}
+
+function expHTML(e){
+  const m=CAT_META[e.cat]||{icon:'📦',cls:'ic-other'};
+  const badge=e.recurring?'<span class="recurring-badge">固定費</span>':'';
+  return`<div class="exp-item" onclick="openEditModal('${e._key}','${e._month}')">
+    <div class="exp-icon ${m.cls}">${m.icon}</div>
+    <div class="exp-body"><div class="exp-name">${e.memo||e.cat}${badge}</div><div class="exp-meta">${e.cat} · ${e.date}</div></div>
+    <div class="exp-right"><div class="exp-amt">${fmt(e.amount)}</div><div class="exp-payer">${payerName(e.payer)}が支払</div></div>
+  </div>`;
+}
+
+function addExpense(){
+  const amt=parseFloat(document.getElementById('inp-amount').value);
+  const memo=document.getElementById('inp-memo').value.trim();
+  const date=document.getElementById('inp-date').value;
+  const isRecurring=document.getElementById('recurring-toggle').classList.contains('on');
+  if(!amt||amt<=0){showToast('金額を入力してください');return}
+  if(!date){showToast('日付を選択してください');return}
+  const month=date.substring(0,7);
+  const dateLabel=`${parseInt(date.substring(5,7))}/${parseInt(date.substring(8,10))}`;
+  const entry={memo:memo||selCatVal,cat:selCatVal,amount:amt,payer:selPayerVal,date:dateLabel,ts:Date.now(),recurring:isRecurring};
+  roomRef.child('expenses').child(month).push(entry).then(()=>{
+    if(isRecurring) roomRef.child('recurring').push({memo:memo||selCatVal,cat:selCatVal,amount:amt,payer:selPayerVal});
+    document.getElementById('inp-amount').value='';
+    document.getElementById('inp-memo').value='';
+    document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
+    document.getElementById('recurring-toggle').classList.remove('on');
+    showToast('追加しました ✓');
+    setTimeout(()=>switchTab('home'),500);
+  }).catch(()=>showToast('保存に失敗しました'));
+}
+
+function settle(){
+  const exps=curExpenses();const{diff}=calcBal(exps);const abs=Math.abs(diff);
+  if(abs===0)return;
+  if(!confirm('精算を完了しますか？今月の全支出が削除されます。'))return;
+  const payer=diff>0?(members.p2||'ユーザーB'):(members.p1||'ユーザーA');
+  const payee=diff>0?(members.p1||'ユーザーA'):(members.p2||'ユーザーB');
+  roomRef.child('expenses').child(curMonthKey()).remove()
+    .then(()=>showToast(`精算完了 ${payer}→${payee} ${fmt(abs/2)}`));
+}
+
+function renderHistory(){
+  const exps=curExpenses();
+  const filtered=filterCatVal==='全て'?exps:exps.filter(e=>e.cat===filterCatVal);
+  document.getElementById('hist-list').innerHTML=filtered.length?filtered.map(e=>expHTML(e)).join(''):'<div class="empty">支出がありません</div>';
+  renderGraph(exps);
+}
+
+function filterCat(el,cat){
+  document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');filterCatVal=cat;renderHistory();
+}
+
+function setView(v){
+  document.getElementById('hist-list-view').style.display=v==='list'?'block':'none';
+  document.getElementById('hist-graph-view').style.display=v==='graph'?'block':'none';
+  document.getElementById('view-list-btn').classList.toggle('active',v==='list');
+  document.getElementById('view-graph-btn').classList.toggle('active',v==='graph');
+}
+
+function renderGraph(exps){
+  const totals={};
+  exps.forEach(e=>{totals[e.cat]=(totals[e.cat]||0)+e.amount});
+  const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+  const total=exps.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('graph-total-val').textContent=fmt(total);
+
+  const canvas=document.getElementById('pie-chart');
+  const legend=document.getElementById('pie-legend');
+  if(!canvas||!sorted.length){if(legend)legend.innerHTML='<div class="empty">データがありません</div>';return}
+
+  // Retina対応：devicePixelRatioでcanvasの実ピクセルを拡大
+  const dpr=window.devicePixelRatio||1;
+  const DISPLAY=280;
+  canvas.width=DISPLAY*dpr;
+  canvas.height=DISPLAY*dpr;
+
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr); // 描画座標はそのままDISPLAYサイズで扱う
+
+  const W=DISPLAY,H=DISPLAY,cx=W/2,cy=H/2,R=110,R_inner=55;
+  ctx.clearRect(0,0,W,H);
+
+  const PIE_COLORS=['#BFDBFE','#FDE68A','#A7F3D0','#F5D0FE','#FCA5A5','#6EE7B7','#FCD34D','#C4B5FD'];
+  let startAngle=-Math.PI/2;
+  const slices=[];
+  sorted.forEach(([cat,amt],i)=>{
+    const angle=(amt/total)*2*Math.PI;
+    const color=PIE_COLORS[i%PIE_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,startAngle,startAngle+angle);
+    ctx.closePath();
+    ctx.fillStyle=color;
+    ctx.fill();
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2;
+    ctx.stroke();
+    slices.push({cat,amt,color,start:startAngle,end:startAngle+angle});
+    startAngle+=angle;
+  });
+  // 中央の穴（ドーナツ）
+  ctx.beginPath();
+  ctx.arc(cx,cy,R_inner,0,2*Math.PI);
+  ctx.fillStyle='#F0F2F7';
+  ctx.fill();
+  // 中央テキスト
+  ctx.fillStyle='#0D0F14';
+  ctx.font='bold 13px Noto Sans JP,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('合計',cx,cy-6);
+  ctx.font='bold 12px Noto Sans Mono,monospace';
+  ctx.fillText(fmt(total),cx,cy+12);
+
+  // 凡例（金額は省略なし）
+  legend.innerHTML=slices.map(s=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-radius:10px">
+      <div style="width:12px;height:12px;border-radius:3px;background:${s.color};flex-shrink:0"></div>
+      <span style="font-size:12px;color:var(--secondary);flex-shrink:0">${CAT_META[s.cat]?.icon||'📦'} ${s.cat}</span>
+      <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--primary);margin-left:auto">${fmt(s.amt)}</span>
+    </div>`).join('');
+}
+
+function renderSettings(){
+  const exps=curExpenses();const{p1,p2}=calcBal(exps);
+  document.getElementById('sum-total').textContent=fmt(p1+p2);
+  document.getElementById('sum-count').textContent=exps.length+'件';
+  document.getElementById('sum-p1').textContent=fmt(p1);
+  document.getElementById('sum-p2').textContent=fmt(p2);
+}
+
+function renderRecurringList(){
+  const list=document.getElementById('recurring-list');
+  if(!recurringList.length){list.innerHTML='<div class="empty" style="padding:16px 0">固定費はまだありません</div>';return}
+  list.innerHTML=recurringList.map(r=>{
+    const m=CAT_META[r.cat]||{icon:'📦',cls:'ic-other'};
+    return`<div class="rec-item" onclick="openEditRecurringModal('${r._key}')" style="cursor:pointer">
+      <div class="rec-icon ${m.cls}">${m.icon}</div>
+      <div class="rec-body"><div class="rec-name">${r.memo}</div><div class="rec-meta">毎月 · ${payerName(r.payer)}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="rec-amt">${fmt(r.amount)}</div>
+        <span style="font-size:11px;color:var(--secondary)">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function applyRecurringToCurrentMonth(){
+  if(!recurringList.length||!roomRef)return;
+  const monthKey=getMonths()[2];
+  const today=new Date();
+  const dateLabel=`${today.getMonth()+1}/1`;
+  const exps=allExpenses[monthKey]||[];
+  recurringList.forEach(r=>{
+    const already=exps.some(e=>e.recurring&&e.memo===r.memo&&e.cat===r.cat);
+    if(!already) roomRef.child('expenses').child(monthKey).push({memo:r.memo,cat:r.cat,amount:r.amount,payer:r.payer,date:dateLabel,ts:Date.now(),recurring:true});
+  });
+}
+
+function copyRoomCode(){navigator.clipboard.writeText(roomId).then(()=>showToast('コピーしました！'))}
+function clearData(){
+  if(!confirm('今月の全支出を削除しますか？'))return;
+  roomRef.child('expenses').child(curMonthKey()).remove().then(()=>{showToast('リセットしました');renderSettings()});
+}
+
+function openEditModal(key,month){
+  const exps=allExpenses[month]||[];
+  const e=exps.find(x=>x._key===key);
+  if(!e)return;
+  editingKey=key;editingMonth=month;
+  document.getElementById('edit-amount').value=e.amount;
+  document.getElementById('edit-memo').value=e.memo||'';
+  const parts=(e.date||'').split('/');
+  const[y]=month.split('-');
+  if(parts.length===2) document.getElementById('edit-date').value=`${y}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+  document.querySelectorAll('#edit-cat-grid .cat-opt').forEach(o=>o.classList.toggle('sel',o.dataset.cat===e.cat));
+  selEditCatVal=e.cat;
+  selEditPayerVal=e.payer;
+  document.getElementById('edit-payer-1').classList.toggle('sel',e.payer===1);
+  document.getElementById('edit-payer-2').classList.toggle('sel',e.payer===2);
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function selEditCat(el){
+  document.querySelectorAll('#edit-cat-grid .cat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');selEditCatVal=el.dataset.cat;
+}
+function selEditPayer(n){
+  selEditPayerVal=n;
+  document.getElementById('edit-payer-1').classList.toggle('sel',n===1);
+  document.getElementById('edit-payer-2').classList.toggle('sel',n===2);
+}
+
+function saveExpense(){
+  const amt=parseFloat(document.getElementById('edit-amount').value);
+  const memo=document.getElementById('edit-memo').value.trim();
+  const date=document.getElementById('edit-date').value;
+  if(!amt||amt<=0){showToast('金額を入力してください');return}
+  const dateLabel=date?`${parseInt(date.substring(5,7))}/${parseInt(date.substring(8,10))}`:'';
+  roomRef.child('expenses').child(editingMonth).child(editingKey).update({
+    memo:memo||selEditCatVal,cat:selEditCatVal,amount:amt,payer:selEditPayerVal,date:dateLabel
+  }).then(()=>{closeModal();showToast('保存しました ✓')});
+}
+
+function deleteExpense(){
+  if(!confirm('この支出を削除しますか？'))return;
+  roomRef.child('expenses').child(editingMonth).child(editingKey).remove()
+    .then(()=>{closeModal();showToast('削除しました')});
+}
+
+function closeModal(){document.getElementById('edit-modal').classList.remove('show')}
+
+const TAB_ICONS = ['home','add','history','settings'];
+function switchTab(t){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  // SVGアイコンのactive/inactive切り替え
+  TAB_ICONS.forEach(name=>{
+    const act=document.getElementById('icon-'+name+'-active');
+    const inact=document.getElementById('icon-'+name+'-inactive');
+    if(act) act.style.display = name===t ? 'block' : 'none';
+    if(inact) inact.style.display = name===t ? 'none' : 'block';
+  });
+  if(t==='settings')renderSettings();
+}
+
+function selCat(el){
+  document.querySelectorAll('#screen-add .cat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');selCatVal=el.dataset.cat;
+}
+function selPayer(n){
+  selPayerVal=n;
+  document.getElementById('payer-1').classList.toggle('sel',n===1);
+  document.getElementById('payer-2').classList.toggle('sel',n===2);
+}
+
+
+// ===== 固定費モーダル =====
+let recAddCat='家賃', recAddPayer=1;
+let recEditCat='食費', recEditPayer=1, editingRecKey=null;
+
+function openAddRecurringModal(){
+  recAddCat='家賃'; recAddPayer=1;
+  document.getElementById('rec-add-amount').value='';
+  document.getElementById('rec-add-memo').value='';
+  document.querySelectorAll('#rec-add-cat-grid .cat-opt').forEach(o=>o.classList.toggle('sel',o.dataset.cat==='家賃'));
+  document.getElementById('rec-add-payer-1').classList.add('sel');
+  document.getElementById('rec-add-payer-2').classList.remove('sel');
+  document.getElementById('rec-add-p1-name').textContent=members.p1||'ユーザーA';
+  document.getElementById('rec-add-p2-name').textContent=members.p2||'ユーザーB';
+  document.getElementById('rec-add-modal').classList.add('show');
+}
+
+function openEditRecurringModal(key){
+  const r=recurringList.find(x=>x._key===key);
+  if(!r)return;
+  editingRecKey=key;
+  recEditCat=r.cat; recEditPayer=r.payer;
+  document.getElementById('rec-edit-amount').value=r.amount;
+  document.getElementById('rec-edit-memo').value=r.memo||'';
+  document.querySelectorAll('#rec-edit-cat-grid .cat-opt').forEach(o=>o.classList.toggle('sel',o.dataset.cat===r.cat));
+  document.getElementById('rec-edit-payer-1').classList.toggle('sel',r.payer===1);
+  document.getElementById('rec-edit-payer-2').classList.toggle('sel',r.payer===2);
+  document.getElementById('rec-edit-p1-name').textContent=members.p1||'ユーザーA';
+  document.getElementById('rec-edit-p2-name').textContent=members.p2||'ユーザーB';
+  document.getElementById('rec-edit-modal').classList.add('show');
+}
+
+function closeRecModal(type){
+  document.getElementById('rec-'+type+'-modal').classList.remove('show');
+}
+
+function selRecCat(el,type){
+  document.querySelectorAll('#rec-'+type+'-cat-grid .cat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  if(type==='add') recAddCat=el.dataset.cat;
+  else recEditCat=el.dataset.cat;
+}
+
+function selRecPayer(n,type){
+  if(type==='add'){
+    recAddPayer=n;
+    document.getElementById('rec-add-payer-1').classList.toggle('sel',n===1);
+    document.getElementById('rec-add-payer-2').classList.toggle('sel',n===2);
+  } else {
+    recEditPayer=n;
+    document.getElementById('rec-edit-payer-1').classList.toggle('sel',n===1);
+    document.getElementById('rec-edit-payer-2').classList.toggle('sel',n===2);
+  }
+}
+
+function saveRecurringAdd(){
+  const amt=parseFloat(document.getElementById('rec-add-amount').value);
+  const memo=document.getElementById('rec-add-memo').value.trim();
+  if(!amt||amt<=0){showToast('金額を入力してください');return}
+  roomRef.child('recurring').push({
+    memo:memo||recAddCat, cat:recAddCat, amount:amt, payer:recAddPayer
+  }).then(()=>{closeRecModal('add');showToast('固定費を追加しました ✓');});
+}
+
+function saveRecurringEdit(){
+  const amt=parseFloat(document.getElementById('rec-edit-amount').value);
+  const memo=document.getElementById('rec-edit-memo').value.trim();
+  if(!amt||amt<=0){showToast('金額を入力してください');return}
+  roomRef.child('recurring').child(editingRecKey).update({
+    memo:memo||recEditCat, cat:recEditCat, amount:amt, payer:recEditPayer
+  }).then(()=>{closeRecModal('edit');showToast('保存しました ✓');});
+}
+
+function deleteRecurring(){
+  if(!confirm('この固定費を削除しますか？'))return;
+  roomRef.child('recurring').child(editingRecKey).remove()
+    .then(()=>{closeRecModal('edit');showToast('削除しました');});
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+document.getElementById('edit-modal').addEventListener('click',function(e){if(e.target===this)closeModal()});
+document.getElementById('rec-add-modal').addEventListener('click',function(e){if(e.target===this)closeRecModal('add')});
+document.getElementById('rec-edit-modal').addEventListener('click',function(e){if(e.target===this)closeRecModal('edit')});
+
+const savedRoom=localStorage.getItem('roomId');
+if(savedRoom){document.getElementById('room-input').value=savedRoom;joinRoom()}
+else{renderSavedRooms();}
+</script>
+
+<script>
+// ===== PWA アイコン & Manifest 動的生成 =====
+(function(){
+  // がま口SVG：viewBoxを財布本体に合わせてセンタリング
+  const WALLET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="680 225 595 668">
+    <style>
+      .gi0{fill:rgba(255,255,255,0.68)}
+      .gi1{fill:rgba(242,94,8,0.68)}
+      .gi2{fill:rgba(255,255,255,0.63)}
+      .gi3{fill:rgba(255,255,255,0.85)}
+      .gi4{fill:rgba(255,255,255,0.96)}
+    </style>
+    <path class="gi0" d="M1060.7,331.5c-1.7-.4-3.7.3-4.4-2.1l-75-4c7-15.7,10.6-27.6,5.3-44.8-.6-1.8-5.8-14.6-6.3-15.2,0-.1-1.7-.2-2.5-1-3.9-4.1-8-7.6-12.5-11-17.3-7.5-31-9.8-48.7-1.2-25.8,12.6-36.5,52.3-17.3,74.2.6.7,4,2.7,4,3.5l-1.7,1.3c-11.3,1.4-22.4,4.1-33.3,7.2-89.9,25-147.5,93.5-163.7,184.8-3.7,20.6-10.6,51.9,9.4,66l12.3,6.2c2.1-5.6,4.5-11.6,7-17,.7-3.8-.6-2.4-2.2-3.3-9.2-5.3-9.3-8.9-8.9-19.3,1.5-34.6,15.1-79.4,32.9-109.1,47.1-78.9,133.8-99.9,220.6-100.4,116.1-.6,213.8,32.7,249.8,152.3,5,16.5,12.6,48.7,10.8,65.3-.6,5.4-6.6,12.2-12.1,12.4,2.3,6.4,5.5,12.6,8,19,10.7-4.5,19.3-9.4,23.5-21,6.7-18.6-3.3-62.2-9.2-81.7-28.7-95.1-91.4-140.9-185.8-161.2Z"/>
+    <path class="gi3" d="M981.3,325.4l75,4c20.7-22,14.1-62-12.3-76.2-17.4-9.4-31.1-7.6-48.7-.8-5.4,3.8-11.1,7.5-15,13,.5.7,5.7,13.4,6.3,15.2,5.4,17.2,1.8,29-5.3,44.8ZM992.8,271.5c.8-2.4,6.7-8.2,9.2-8.8,18.3-4.7,28,17.1,13.7,27.7-12.5,9.3-28-4.1-22.9-18.9Z"/>
+    <path class="gi4" d="M1232.3,595.4c-2.5-6.4-5.7-12.6-8-19-5.4.2-13.7-4.6-15.5-10-1.8-12.3-2.1-24.8-4.5-37-1.6-8.3-4.4-20-7-28-20-62.6-75.9-113.4-143-120-11.5-2-23.4-4.1-35-5-20-1.6-43.9-1.9-64-1-12.2.5-25.6,2.3-38,4-87.7,12.4-144.3,58.6-162,147,3.9,1.5.3,4.1,0,6.6-.3,2.7-1,8.9-1,10.9v18c0,.2-2.3,2.5-3,2.5,0-1.3,0-2.7,0-4-1,6.3-4.4,12.5-11,14.5-4.6,1.4-4.7-1.6-7,3.5-2.5,5.4-4.9,11.4-7,17-41.6,110.5-10.6,187,100.2,227.3,30.2,11,61.9,17.8,93.8,21.7,40,4.9,78,4.8,118,0,80.2-9.7,188.2-42.1,208.5-132,8.4-37.4-1-81.8-14.5-117Z"/>
+    <path class="gi4" d="M751.3,560.4c0,1.3,0,2.7,0,4,.7,0,3-2.3,3-2.5v-18c0-2,.8-8.2,1-10.9.2-2.4,3.9-5,0-6.6-2.2,11-4.4,22.7-4,34Z"/>
+    <path class="gi2" d="M1202.7,510.4c-.5-2.5,1.3-4.2-.9-6.1-.8-.7-2.2,0-2.4-.1-.7-.7-.9-5.5-2.2-2.8,2.6,8,5.4,19.7,7,28,2.7-6.8-.4-12.8-1.6-19Z"/>
+    <path style="fill:rgba(255,255,255,0.97)" d="M1015.7,290.4c14.3-10.6,4.5-32.4-13.7-27.7-2.5.6-8.4,6.4-9.2,8.8-5,14.8,10.4,28.3,22.9,18.9Z"/>
+    <path class="gi2" d="M1225.5,498.7c-36-119.5-133.7-152.9-249.8-152.3-86.8.5-173.5,21.4-220.6,100.4-17.7,29.7-31.4,74.5-32.9,109.1-.4,10.4-.4,14,8.9,19.3,1.6.9,2.8-.5,2.2,3.3,2.3-5,2.5-2,7-3.5,6.6-2.1,9.9-8.2,11-14.5-.4-11.3,1.8-23,4-34,17.7-88.4,74.3-134.6,162-147,12.4-1.7,25.8-3.5,38-4,20.1-.9,44-.6,64,1,11.6.9,23.5,3,35,5,67.1,6.6,123,57.4,143,120,1.2-2.7,1.4,2.1,2.2,2.8.2.1,1.5-.6,2.4.1,2.2,1.9.4,3.6.9,6.1,1.2,6.2,4.3,12.2,1.6,19,2.3,12.2,2.6,24.7,4.5,37,1.9,5.4,10.1,10.2,15.5,10,5.5-.2,11.5-7.1,12.1-12.4,1.8-16.6-5.8-48.8-10.8-65.3Z"/>
+    <path class="gi1" d="M1048,640.1c10.3,0,18.7-8.4,18.7-18.7s-8.4-18.4-18.7-18.4h-25.5l41.9-65.1c6.2-9.3,3.4-22.1-6.1-28.5-4.7-3.1-10.2-4.1-15.6-2.8-5.1,1.2-9.6,4.4-12.6,8.9l-52.4,81.4-51.4-80.6c-2.8-4.6-7.3-7.8-12.7-8.9-5.5-1.2-11.3-.1-15.9,3-9.6,6.4-12.3,18.8-6.1,28.2l41.4,64.5h-24.9c-10.3,0-18.7,8.3-18.7,18.4s8.4,18.7,18.7,18.7h48.7v9.6h-48.7c-10.3,0-18.7,8.3-18.7,18.4s8.4,18.4,18.7,18.4h48.7v54.9c0,11.5,9.4,20.9,20.9,20.9s21.2-9.4,21.2-20.9v-54.9h49.3c10.3,0,18.7-8.3,18.7-18.4s-8.4-18.4-18.7-18.4h-49.3v-9.6h49.3Z"/>
+  </svg>`;
+
+  function makePngIcon(svgStr, size, callback) {
+    const blob = new Blob([svgStr], {type:'image/svg+xml'});
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      // ① オレンジ背景を塗りつぶす
+      ctx.fillStyle = '#F25E08';
+      ctx.fillRect(0, 0, size, size);
+      // ② 余白16%を確保して中央に縮小描画
+      const padding = size * 0.16;
+      const drawSize = size - padding * 2;
+      ctx.drawImage(img, padding, padding, drawSize, drawSize);
+      URL.revokeObjectURL(url);
+      callback(canvas.toDataURL('image/png'));
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); };
+    img.src = url;
+  }
+
+  // apple-touch-icon (180×180)
+  makePngIcon(WALLET_SVG, 180, function(png180) {
+    const link = document.getElementById('pwa-apple-icon');
+    if (link) { link.rel = 'apple-touch-icon'; link.setAttribute('sizes','180x180'); link.href = png180; }
+
+    // 512×512 → manifest
+    makePngIcon(WALLET_SVG, 512, function(png512) {
+      const manifest = {
+        name: 'ふたりの家計',
+        short_name: 'ふたりの家計',
+        description: 'パートナーとお金を一緒に管理するアプリ',
+        start_url: './',
+        display: 'standalone',
+        orientation: 'portrait',
+        background_color: '#F25E08',
+        theme_color: '#F25E08',
+        icons: [
+          { src: png180, sizes: '180x180', type: 'image/png', purpose: 'any maskable' },
+          { src: png512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+        ]
+      };
+      const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+      const mLink = document.getElementById('pwa-manifest');
+      if (mLink) { mLink.rel = 'manifest'; mLink.href = URL.createObjectURL(mBlob); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
