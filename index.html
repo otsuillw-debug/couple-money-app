@@ -1071,10 +1071,15 @@ function renderHome(){
       const show = !settled && (isViewingPastMonth || isNearEnd);
       infoBanner.style.display = show ? 'block' : 'none';
     }
-  } else {
-    // 差額なし
+  } else if (exps.length > 0) {
+    // 支出はあるが差額なし（本当に均等）
     settleSection.style.display = 'none';
     if (settleEven) settleEven.style.display = 'block';
+    if (infoBanner) infoBanner.style.display = 'none';
+  } else {
+    // この月の支出が0件 → 精算情報自体を表示しない
+    settleSection.style.display = 'none';
+    if (settleEven) settleEven.style.display = 'none';
     if (infoBanner) infoBanner.style.display = 'none';
   }
 
