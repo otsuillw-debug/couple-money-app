@@ -717,6 +717,7 @@ let recurringList=[];
 let selCatVal='食費', selPayerVal=1, filterCatVal='全て';
 let editingKey=null, editingMonth=null;
 let selEditCatVal='食費', selEditPayerVal=1;
+const MONTH_RANGE=24; // 直近24ヶ月
 let curMonthIdx=MONTH_RANGE-1;
 
 // 統一カテゴリパレット（全画面共通）
@@ -735,7 +736,6 @@ function catColor(cat){return (CAT_META[cat]||{}).color||'#A89BE0'}
 function catIcon(cat){return (CAT_META[cat]||{}).icon||'📦'}
 const fmt=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
 
-const MONTH_RANGE=24; // 直近24ヶ月
 function getMonths(){
   const now=new Date();
   // 古い順 → 新しい順（末尾が今月）
