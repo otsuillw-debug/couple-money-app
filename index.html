@@ -187,6 +187,10 @@ html,body{height:100%;background:var(--bg);font-family:var(--font);overflow:hidd
 .toast{position:fixed;bottom:calc(58px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(12px);background:var(--primary);color:#fff;padding:9px 18px;border-radius:99px;font-size:12px;font-weight:700;opacity:0;transition:all .25s;pointer-events:none;z-index:300;white-space:nowrap;font-family:var(--font)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .empty{text-align:center;padding:40px 20px;color:var(--secondary);font-size:13px}
+.settle-amt-copyable{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:3px 8px 3px 0;margin:-3px 0 -3px -0px;border-radius:6px;transition:background .15s;max-width:100%}
+.settle-amt-copyable:active{background:rgba(255,255,255,0.15)}
+.settle-amt-text{font-family:var(--mono);font-size:18px;font-weight:700;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settle-copy-icon{opacity:.75;flex-shrink:0}
 /* 分析タブ */
 .an-selector{padding:0 20px;margin-bottom:14px;position:relative}
 .an-selector-label{font-size:10px;font-weight:700;color:var(--tertiary);letter-spacing:.06em;margin-bottom:6px}
@@ -307,7 +311,13 @@ html,body{height:100%;background:var(--bg);font-family:var(--font);overflow:hidd
       <div id="settle-section" style="border-top:0.5px solid rgba(255,255,255,0.22);padding-top:10px;display:flex;align-items:center;gap:10px;position:relative;z-index:1;display:none">
         <div style="flex:1;min-width:0">
           <div style="font-size:10px;opacity:.65;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="settle-sub-label">精算額</div>
-          <div style="font-family:var(--mono);font-size:18px;font-weight:700;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="settle-amount-display">¥0</div>
+          <div class="settle-amt-copyable" id="settle-amount-copy-wrap" onclick="copySettleAmount()">
+            <span class="settle-amt-text" id="settle-amount-display">¥0</span>
+            <svg class="settle-copy-icon" id="settle-copy-icon" width="15" height="15" viewBox="0 0 20 20" fill="none">
+              <rect x="6.5" y="6.5" width="10" height="10" rx="2" stroke="white" stroke-width="1.6"/>
+              <path d="M3.5 13.5V4.5C3.5 3.9 3.9 3.5 4.5 3.5H13.5" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
         </div>
         <button id="settle-action-btn" onclick="handleSettleAction()" style="border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;flex-shrink:0;white-space:nowrap">精算する</button>
       </div>
@@ -318,7 +328,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--font);overflow:hidd
     <!-- 支出内訳 帯グラフ -->
     <div class="sec-header"><div class="sec-title">支出内訳</div></div>
     <div style="padding:0 20px;margin-bottom:14px">
-      <div style="background:var(--surface);border-radius:16px;padding:16px">
+      <div style="background:var(--surface);border-radius:16px;padding:16px;min-height:406px;box-sizing:border-box">
         <div id="home-pie-wrap" style="display:flex;justify-content:center;margin-bottom:14px">
           <canvas id="home-pie" width="180" height="180" style="width:180px;height:180px"></canvas>
         </div>
@@ -995,6 +1005,56 @@ let settledData = {}; // { "2025-05": true }
 
 function isSettled() {
   return !!settledData[curMonthKey()];
+}
+
+// 精算額をタップでコピー
+function copySettleAmount() {
+  const el = document.getElementById('settle-amount-display');
+  if (!el) return;
+  const text = el.textContent.trim(); // 例: "¥2,000"
+  const numOnly = text.replace(/[^0-9]/g, ''); // 数字のみ抽出
+
+  const onSuccess = () => {
+    showToast('金額をコピーしました ✓');
+    flashCopyIcon();
+  };
+
+  const doCopy = (value) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value)
+        .then(onSuccess)
+        .catch(() => fallbackCopy(value));
+    } else {
+      fallbackCopy(value);
+    }
+  };
+
+  const fallbackCopy = (value) => {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      onSuccess();
+    } catch (e) {
+      showToast('コピーに失敗しました');
+    }
+    document.body.removeChild(ta);
+  };
+
+  doCopy(numOnly);
+}
+
+// コピー成功時にアイコンを一瞬チェックマークに切り替える
+function flashCopyIcon() {
+  const icon = document.getElementById('settle-copy-icon');
+  if (!icon) return;
+  const original = icon.innerHTML;
+  icon.innerHTML = '<path d="M4 10.5L8 14.5L16 5.5" stroke="#8CE0B0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  setTimeout(() => { icon.innerHTML = original; }, 1200);
 }
 
 function handleSettleAction() {
